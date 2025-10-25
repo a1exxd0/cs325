@@ -1,0 +1,20 @@
+[
+  {
+    "arguments": [
+      "/modules/cs325/llvm-21.1.0/bin/clang++",
+      "-std=c++23",
+      "-Wall",
+      "-Wextra",
+      "-O0",
+      "-g",
+      "-Isrc",
+      "-c",
+      "-o",
+      "build/mccomp.o",
+      "src/mccomp.cpp"
+    ],
+    "directory": "/dcs/23/u5505454/cs325/code",
+    "file": "/dcs/23/u5505454/cs325/code/src/mccomp.cpp",
+    "output": "/dcs/23/u5505454/cs325/code/build/mccomp.o"
+  }
+]
