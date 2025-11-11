@@ -1,2 +1,4 @@
 **.ll
 mccomp
+build/*
+.cache/

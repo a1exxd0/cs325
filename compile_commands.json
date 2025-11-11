@@ -1,0 +1,60 @@
+[
+  {
+    "arguments": [
+      "/modules/cs325/llvm-21.1.0/bin/clang++",
+      "-std=c++17",
+      "-Wall",
+      "-Wextra",
+      "-O0",
+      "-g",
+      "-Ithird_party/fmt/include",
+      "-I/modules/cs325/llvm-21.1.0/include",
+      "-std=c++17",
+      "-fno-exceptions",
+      "-funwind-tables",
+      "-fno-rtti",
+      "-D_GNU_SOURCE",
+      "-DEXPERIMENTAL_KEY_INSTRUCTIONS",
+      "-D__STDC_CONSTANT_MACROS",
+      "-D__STDC_FORMAT_MACROS",
+      "-D__STDC_LIMIT_MACROS",
+      "-Isrc",
+      "-c",
+      "-o",
+      "build/mccomp.o",
+      "src/mccomp.cpp"
+    ],
+    "directory": "/dcs/23/u5505454/cs325/code",
+    "file": "/dcs/23/u5505454/cs325/code/src/mccomp.cpp",
+    "output": "/dcs/23/u5505454/cs325/code/build/mccomp.o"
+  },
+  {
+    "arguments": [
+      "/modules/cs325/llvm-21.1.0/bin/clang++",
+      "-std=c++17",
+      "-Wall",
+      "-Wextra",
+      "-O0",
+      "-g",
+      "-Ithird_party/fmt/include",
+      "-I/modules/cs325/llvm-21.1.0/include",
+      "-std=c++17",
+      "-fno-exceptions",
+      "-funwind-tables",
+      "-fno-rtti",
+      "-D_GNU_SOURCE",
+      "-DEXPERIMENTAL_KEY_INSTRUCTIONS",
+      "-D__STDC_CONSTANT_MACROS",
+      "-D__STDC_FORMAT_MACROS",
+      "-D__STDC_LIMIT_MACROS",
+      "-Isrc",
+      "-c",
+      "-o",
+      "build/tokens/tokens.o",
+      "src/tokens/tokens.cpp"
+    ],
+    "directory": "/dcs/23/u5505454/cs325/code",
+    "file": "/dcs/23/u5505454/cs325/code/src/tokens/tokens.cpp",
+    "output": "/dcs/23/u5505454/cs325/code/build/tokens/tokens.o"
+  }
+]
