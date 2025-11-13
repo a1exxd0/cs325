@@ -1,5 +1,11 @@
 # CS325 Compiler Design
 
+To clone the repository on GH, use:
+```sh
+# Recurse submodules is needed because we use fmt/ as a submodule.
+git clone --recurse-submodules https://github.com/a1exxd0/cs325.git
+```
+
 A short introduction in how to produce the frontend for a C compiler producing LLVM IR.
 
 Lexer is prewritten, we need to build a recursive descent predictive parser in C++.
