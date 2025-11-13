@@ -1,6 +1,10 @@
 #pragma once
 #define FMT_HEADER_ONLY
 
+#ifndef ALLOWED_INCLUDE
+#error "Do not include this directly, use <error/error.h>"
+#endif
+
 #include <cstddef>
 #include <optional>
 #include <string>
