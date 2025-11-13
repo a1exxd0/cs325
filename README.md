@@ -5,61 +5,122 @@ A short introduction in how to produce the frontend for a C compiler producing L
 Lexer is prewritten, we need to build a recursive descent predictive parser in C++.
 
 # Grammar (need to make LL(k))
+
 ```
-program ::= extern_list decl_list 
+program ::= extern_list decl_list
         | decl_list
 extern_list ::= extern_list extern
         |  extern
 extern ::= "extern" type_spec IDENT "(" params ")" ";"
 decl_list ::= decl_list decl
         |  decl
-decl ::= var_decl 
+decl ::= var_decl
         |  fun_decl
-var_decl ::= var_type IDENT ";" 
+var_decl ::= var_type IDENT ";"
 type_spec ::= "void"
-        |  var_type           
+        |  var_type
 var_type  ::= "int" |  "float" |  "bool"
 fun_decl ::= type_spec IDENT "(" params ")" block
-params ::= param_list  
+params ::= param_list
         |  "void" | epsilon
-param_list ::= param_list "," param 
+param_list ::= param_list "," param
         |  param
 param ::= var_type IDENT
 block ::= "{" local_decls stmt_list "}"
 local_decls ::= local_decls local_decl
         |  epsilon
 local_decl ::= var_type IDENT ";"
-stmt_list ::= stmt_list stmt 
+stmt_list ::= stmt_list stmt
         |  epsilon
-stmt ::= expr_stmt 
-        |  block 
-        |  if_stmt 
-        |  while_stmt 
+stmt ::= expr_stmt
+        |  block
+        |  if_stmt
+        |  while_stmt
         |  return_stmt
-expr_stmt ::= expr ";" 
+expr_stmt ::= expr ";"
         |  ";"
-while_stmt ::= "while" "(" expr ")" stmt 
+while_stmt ::= "while" "(" expr ")" stmt
 if_stmt ::= "if" "(" expr ")" block else_stmt
 else_stmt  ::= "else" block
         |  epsilon
-return_stmt ::= "return" ";" 
-        |  "return" expr ";"               
-# operators in order of increasing precedence      
+return_stmt ::= "return" ";"
+        |  "return" expr ";"
+# operators in order of increasing precedence
 expr ::= IDENT "=" expr
         | rval
-rval ::= rval "||" rval                                              
-        | rval "&&" rval                                             
-        | rval "==" rval | rval "!=" rval                            
+rval ::= rval "||" rval
+        | rval "&&" rval
+        | rval "==" rval | rval "!=" rval
         | rval "<=" rval | rval "<" rval | rval ">=" rval | rval ">" rval
         | rval "+" rval  | rval "-" rval
         | rval "*" rval  | rval "/" rval  | rval "%" rval
         | "-" rval | "!" rval
         | "(" expr ")"
-        | IDENT | IDENT "(" args ")" 
-        | INT_LIT | FLOAT_LIT | BOOL_LIT        
-args ::= arg_list 
+        | IDENT | IDENT "(" args ")"
+        | INT_LIT | FLOAT_LIT | BOOL_LIT
+args ::= arg_list
         |  epsilon
 arg_list ::= arg_list "," expr
-        |  expr          
+        |  expr
 ```
 
+# Grammar LL(k)
+
+```
+program ::= extern_list decl_list
+        | decl_list
+extern_list ::= extern extern_list_tail
+extern_list_tail ::= extern extern_list_tail
+        | ε
+extern ::= "extern" type_spec IDENT "(" params ")" ";"
+decl_list ::= decl_list decl
+        |  decl
+decl ::= var_decl
+        |  fun_decl
+var_decl ::= var_type IDENT ";"
+type_spec ::= "void"
+        |  var_type
+var_type  ::= "int" |  "float" |  "bool"
+fun_decl ::= type_spec IDENT "(" params ")" block
+params ::= param_list
+        |  "void" | epsilon
+param_list ::= param_list "," param
+        |  param
+param ::= var_type IDENT
+block ::= "{" local_decls stmt_list "}"
+local_decls ::= local_decls local_decl
+        |  epsilon
+local_decl ::= var_type IDENT ";"
+stmt_list ::= stmt_list stmt
+        |  epsilon
+stmt ::= expr_stmt
+        |  block
+        |  if_stmt
+        |  while_stmt
+        |  return_stmt
+expr_stmt ::= expr ";"
+        |  ";"
+while_stmt ::= "while" "(" expr ")" stmt
+if_stmt ::= "if" "(" expr ")" block else_stmt
+else_stmt  ::= "else" block
+        |  epsilon
+return_stmt ::= "return" ";"
+        |  "return" expr ";"
+# operators in order of increasing precedence
+expr ::= IDENT "=" expr
+        | rval
+rval ::= rval "||" rval
+        | rval "&&" rval
+        | rval "==" rval | rval "!=" rval
+        | rval "<=" rval | rval "<" rval | rval ">=" rval | rval ">" rval
+        | rval "+" rval  | rval "[48;67;127;2144;1778t-" rval
+        | rval "*" rval  | rval "/" rval  | rval "%" rval
+        | "-" rval | "!" rval
+        | "(" expr ")"
+        | IDENT | IDENT "(" args ")"
+        | INT_LIT | FLOAT_LIT | BOOL_LIT
+args ::= arg_list
+        |  epsilon
+arg_list ::= arg_list "," expr
+        |  expr
+```
