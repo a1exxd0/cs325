@@ -37,14 +37,23 @@ class Parser {
 
 public:
   auto getNextToken(Lexer &lexer) -> std::optional<Token> {
-
     if (tokBuffer.size() == 0)
-      tokBuffer.push_back(lexer.gettok());
+      tokBuffer.push_back(lexer.getToken());
 
-    Token temp = tokBuffer.front();
+    auto temp = tokBuffer.front();
     tokBuffer.pop_front();
 
     return curTok = temp;
+  }
+
+  auto peekNextToken(const Lexer &lexer) const -> std::optional<Token> {
+    if (tokBuffer.size() == 0)
+      return lexer.peekToken();
+
+    auto token =
+        (tokBuffer.size() == 0) ? lexer.peekToken() : tokBuffer.front();
+
+    return token;
   }
 
   auto putBackToken(Token tok) -> void { tokBuffer.push_front(tok); }
