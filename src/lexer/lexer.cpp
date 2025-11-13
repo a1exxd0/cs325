@@ -1,20 +1,22 @@
 
-#include "error/clang_error.h"
 #include <cstdio>
+#include <error/error.h>
+#include <fmt/format.h>
 #include <iostream>
 #include <lexer/lexer.h>
 #include <string>
-#include <string_view>
 #include <tokens/tokens.h>
 
 namespace mccomp {
 
 Lexer::Lexer(const char *fileName) : globalLexeme(), lineNo(0), columnNo(0) {
   auto file = std::fopen(fileName, "r");
-  if (pFile == nullptr) {
-    auto err = ClangError(ClangErrorSeverity::ERROR, fileName, 0, 0,
-                          "couldn't open file");
-    std::cerr << to_string(err) << std::endl;
+  if (file == nullptr) {
+    auto err = fmt::format(
+        "{}mccomp:{} {}error:{} {}no such file or directory: \'{}\'",
+        text_colors::BOLD, text_colors::RESET, text_colors::RED,
+        text_colors::RESET, text_colors::BOLD, fileName);
+    std::cerr << err << std::endl;
     exit(3);
   } else {
     this->pFile = file;
