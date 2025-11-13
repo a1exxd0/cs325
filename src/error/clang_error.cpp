@@ -1,7 +1,11 @@
-#include "clang_error.h"
 #include <fmt/core.h>
 #include <fstream>
 #include <unordered_set>
+#include <vector>
+
+#define ALLOWED_INCLUDE
+#include "error/clang_error.h"
+#undef ALLOWED_INCLUDE
 
 namespace {
 
