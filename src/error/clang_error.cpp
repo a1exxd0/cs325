@@ -1,16 +1,13 @@
-#include "clang_error.h"
 #include <fmt/core.h>
 #include <fstream>
 #include <unordered_set>
+#include <vector>
+
+#define ALLOWED_INCLUDE
+#include "error/clang_error.h"
+#undef ALLOWED_INCLUDE
 
 namespace {
-constexpr const char *BOLD = "\033[1m";
-constexpr const char *RED = "\033[31m";
-constexpr const char *YELLOW = "\033[33m";
-constexpr const char *RESET = "\033[0m";
-constexpr const char *GREEN = "\033[32;1m";
-constexpr const char *BLUE = "\033[34;1m";
-constexpr const char *CYAN = "\033[1;96m";
 
 const std::unordered_set<std::string> keywords = {
     "extern", "if", "else", "while", "return", "void", "int", "float", "bool"};
@@ -18,13 +15,13 @@ const std::unordered_set<std::string> keywords = {
 constexpr auto severity_color(mccomp::ClangErrorSeverity s) -> const char * {
   switch (s) {
   case mccomp::ClangErrorSeverity::NOTE:
-    return CYAN;
+    return mccomp::text_colors::CYAN;
   case mccomp::ClangErrorSeverity::WARNING:
-    return YELLOW;
+    return mccomp::text_colors::YELLOW;
   case mccomp::ClangErrorSeverity::ERROR:
-    return RED;
+    return mccomp::text_colors::RED;
   }
-  return RESET;
+  return mccomp::text_colors::RESET;
 }
 
 auto highlight_keywords(
@@ -49,10 +46,11 @@ auto highlight_keywords(
       std::string token = line.substr(start, i - start);
 
       if (keywords.count(token)) {
-        out += BLUE;
+        out += mccomp::text_colors::BLUE;
         out += token;
-        out += RESET;
-        out_i += token.size() + std::strlen(BLUE) + std::strlen(RESET);
+        out += mccomp::text_colors::RESET;
+        out_i += token.size() + std::strlen(mccomp::text_colors::BLUE) +
+                 std::strlen(mccomp::text_colors::RESET);
       } else {
         out += token;
         out_i += token.size();
@@ -84,8 +82,9 @@ auto highlight_keywords(
   std::size_t out_l = map[l];
   std::size_t out_r = map[r];
 
-  return out.substr(0, out_l) + GREEN + out.substr(out_l, out_r - out_l) +
-         RESET + out.substr(out_r);
+  return out.substr(0, out_l) + mccomp::text_colors::GREEN +
+         out.substr(out_l, out_r - out_l) + mccomp::text_colors::RESET +
+         out.substr(out_r);
 }
 
 } // namespace
@@ -106,10 +105,10 @@ ClangError::ClangError(ClangErrorSeverity severity, std::string_view fileName,
       severity(severity), message(std::move(message)), errorRange(errorRange) {}
 
 auto ClangError::to_string() const noexcept -> std::string {
-  auto out =
-      fmt::format("{}{}:{}:{}: {}{}: {}{}{}\n", BOLD, fileName, lineNo,
-                  columnNo, severity_color(severity),
-                  mccomp::to_string(severity), RESET, BOLD, message, RESET);
+  auto out = fmt::format("{}{}:{}:{}: {}{}: {}{}{}\n", text_colors::BOLD,
+                         fileName, lineNo, columnNo, severity_color(severity),
+                         mccomp::to_string(severity), text_colors::RESET,
+                         text_colors::BOLD, message, text_colors::RESET);
 
   auto line = this->violatingLine();
   auto coloredLine = highlight_keywords(line, errorRange);
@@ -133,7 +132,8 @@ auto ClangError::to_string() const noexcept -> std::string {
   if (caretPos - 1 < underline.size())
     underline[caretPos - 1] = '^';
 
-  out += fmt::format("      | {}{}{}\n", GREEN, underline, RESET);
+  out += fmt::format("      | {}{}{}\n", text_colors::GREEN, underline,
+                     text_colors::RESET);
 
   return out;
 }

@@ -1,4 +1,4 @@
-#include "error/clang_error.h"
+#include "error/error.h"
 #include "llvm/ADT/APFloat.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/IR/BasicBlock.h"
