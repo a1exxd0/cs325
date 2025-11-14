@@ -1,7 +1,6 @@
 #include <cstdio>
 #include <error/error.h>
 #include <fmt/format.h>
-#include <iostream>
 #include <lexer/lexer.h>
 #include <string>
 #include <tokens/tokens.h>
@@ -275,8 +274,8 @@ inline auto tokenize(FILE *pFile, int &lastChar, int &nextChar, int &lineNo,
   }
 
   // Otherwise, just return the character and invalid identifier.
-  int ThisChar = lastChar;
-  std::string s(1, ThisChar);
+  auto thisChar = lastChar;
+  std::string s(1, thisChar);
   lastChar = getc(pFile);
   columnNo++;
   return returnToken(lineNo, columnNo, fileName, s, mccomp::TokenType::INVALID);
@@ -284,14 +283,14 @@ inline auto tokenize(FILE *pFile, int &lastChar, int &nextChar, int &lineNo,
 
 namespace mccomp {
 
-Lexer::Lexer(const char *fileName) : globalLexeme(), lineNo(0), columnNo(0) {
+Lexer::Lexer(const std::string &programName, const char *fileName)
+    : globalLexeme(), lineNo(0), columnNo(0) {
   auto file = std::fopen(fileName, "r");
   if (file == nullptr) {
-    auto err = fmt::format(
-        "{}mccomp:{} {}error:{} {}no such file or directory: \'{}\'",
-        text_colors::BOLD, text_colors::RESET, text_colors::RED,
+    fmt::println(
+        stderr, "{}{}:{} {}error:{} {}no such file or directory: \'{}\'",
+        text_colors::BOLD, programName, text_colors::RESET, text_colors::RED,
         text_colors::RESET, text_colors::BOLD, fileName);
-    std::cerr << err << std::endl;
     exit(3);
   } else {
     this->pFile = file;

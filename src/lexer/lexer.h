@@ -13,7 +13,7 @@ class Lexer {
   std::string fileName;
 
 public:
-  Lexer(const char *fileName);
+  Lexer(const std::string &programName, const char *fileName);
   ~Lexer();
 
   // Read file line by line -- or look for \n and if found add 1 to line number
