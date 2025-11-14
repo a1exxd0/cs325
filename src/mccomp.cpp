@@ -24,6 +24,7 @@
 #include <cctype>
 #include <cstdio>
 #include <cstdlib>
+#include <filesystem>
 #include <iostream>
 #include <map>
 #include <memory>
@@ -67,7 +68,8 @@ int main(int argc, char **argv) {
     return 1;
   }
 
-  auto lexer = mccomp::Lexer(argv[1]);
+  const auto programName = std::filesystem::path(argv[0]).filename().string();
+  auto lexer = mccomp::Lexer(programName, argv[1]);
   auto parser = mccomp::Parser();
 
   // get the first token
