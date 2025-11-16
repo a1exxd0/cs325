@@ -58,6 +58,19 @@ static std::unique_ptr<Module> TheModule;
 //   printf("%s\n",getType().c_str());
 // }
 
+auto printToken(const mccomp::Token &token) -> void {
+  if (token.getTokenType() == mccomp::TokenType::INT_LIT) {
+    fprintf(stderr, "Token: %d with type %d\n", token.asInt(),
+            token.getTokenType());
+  } else if (token.getTokenType() == mccomp::TokenType::FLOAT_LIT) {
+    fprintf(stderr, "Token: %f with type %d\n", token.asFloat(),
+            token.getTokenType());
+  } else {
+    fprintf(stderr, "Token: %s with type %d\n", token.getLexeme().c_str(),
+            token.getTokenType());
+  }
+}
+
 //===----------------------------------------------------------------------===//
 // Main driver code.
 //===----------------------------------------------------------------------===//
@@ -73,20 +86,11 @@ int main(int argc, char **argv) {
   auto parser = mccomp::Parser();
 
   // get the first token
-  auto currentToken = parser.getNextToken(lexer).value();
+  auto currentToken = parser.getNextToken(lexer);
   while (currentToken.getTokenType() != mccomp::TokenType::EOF_TOK) {
-    if (currentToken.getTokenType() == mccomp::TokenType::INT_LIT) {
-      fprintf(stderr, "Token: %d with type %d\n", currentToken.getInt().value(),
-              currentToken.getTokenType());
-    } else if (currentToken.getTokenType() == mccomp::TokenType::FLOAT_LIT) {
-      fprintf(stderr, "Token: %f with type %d\n",
-              currentToken.getFloat().value(), currentToken.getTokenType());
-    } else {
-      fprintf(stderr, "Token: %s with type %d\n",
-              currentToken.getLexeme().value().c_str(),
-              currentToken.getTokenType());
-    }
-    currentToken = parser.getNextToken(lexer).value();
+    std::cerr << "curr: ";
+    printToken(currentToken);
+    currentToken = parser.getNextToken(lexer);
   }
   fprintf(stderr, "Lexer Finished\n");
 

@@ -11,10 +11,9 @@
 auto returnToken(int lineNo, int columnNo, const std::string &fileName,
                  std::string lexVal, mccomp::TokenType tokType)
     -> mccomp::Token {
-  auto return_tok =
-      mccomp::Token(tokType, fileName, lineNo, columnNo - lexVal.length() - 1,
-                    std::move(lexVal));
-  return return_tok;
+  auto token = mccomp::Token::buildToken(tokType, fileName, lineNo, columnNo,
+                                         std::move(lexVal));
+  return token;
 }
 
 inline auto tokenize(FILE *pFile, int &lastChar, int &nextChar, int &lineNo,
@@ -307,7 +306,9 @@ auto Lexer::getToken() -> Token {
                   this->columnNo, this->globalLexeme, this->fileName);
 }
 
-auto Lexer::peekToken() const -> Token {
+auto Lexer::peekToken() const -> Token { return this->peekToken(1); }
+
+auto Lexer::peekToken(std::size_t n) const -> Token {
   auto savedFilePosition = ftell(this->pFile);
   auto tempLastChar = this->lastChar;
   auto tempNextChar = this->nextChar;
@@ -317,6 +318,14 @@ auto Lexer::peekToken() const -> Token {
 
   auto token = tokenize(this->pFile, tempLastChar, tempNextChar, tempLineNo,
                         tempColumnNo, tempLexeme, this->fileName);
+  for (decltype(n) i = 1; i < n; i++) {
+    if (token.getTokenType() == TokenType::EOF_TOK) {
+      return token;
+    }
+
+    token = tokenize(this->pFile, tempLastChar, tempNextChar, tempLineNo,
+                     tempColumnNo, tempLexeme, this->fileName);
+  }
 
   fseek(this->pFile, savedFilePosition, SEEK_SET);
 

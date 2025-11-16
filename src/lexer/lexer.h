@@ -18,10 +18,13 @@ public:
 
   // Read file line by line -- or look for \n and if found add 1 to line number
   // and reset column number to 0
-  /// gettok - Return the next token from standard input.
   auto getToken() -> Token;
 
+  // Peek next token
   auto peekToken() const -> Token;
+
+  // Peek forwards n tokens (default 1), minimum 1.
+  auto peekToken(std::size_t n) const -> Token;
 };
 
 }; // namespace mccomp
