@@ -11,110 +11,134 @@ A short introduction in how to produce the frontend for a C compiler producing L
 Lexer is prewritten, we need to build a recursive descent predictive parser in C++.
 
 # Grammar (need to make LL(k))
+
 ```
-program ::= extern_list decl_list 
+program ::= extern_list decl_list
         | decl_list
 extern_list ::= extern_list extern
         |  extern
 extern ::= "extern" type_spec IDENT "(" params ")" ";"
 decl_list ::= decl_list decl
         |  decl
-decl ::= var_decl 
+decl ::= var_decl
         |  fun_decl
-var_decl ::= var_type IDENT ";" 
+var_decl ::= var_type IDENT ";"
 type_spec ::= "void"
-        |  var_type           
+        |  var_type
 var_type  ::= "int" |  "float" |  "bool"
 fun_decl ::= type_spec IDENT "(" params ")" block
-params ::= param_list  
+params ::= param_list
         |  "void" | epsilon
-param_list ::= param_list "," param 
+param_list ::= param_list "," param
         |  param
 param ::= var_type IDENT
 block ::= "{" local_decls stmt_list "}"
 local_decls ::= local_decls local_decl
         |  epsilon
 local_decl ::= var_type IDENT ";"
-stmt_list ::= stmt_list stmt 
+stmt_list ::= stmt_list stmt
         |  epsilon
-stmt ::= expr_stmt 
-        |  block 
-        |  if_stmt 
-        |  while_stmt 
+stmt ::= expr_stmt
+        |  block
+        |  if_stmt
+        |  while_stmt
         |  return_stmt
-expr_stmt ::= expr ";" 
+expr_stmt ::= expr ";"
         |  ";"
-while_stmt ::= "while" "(" expr ")" stmt 
+while_stmt ::= "while" "(" expr ")" stmt
 if_stmt ::= "if" "(" expr ")" block else_stmt
 else_stmt  ::= "else" block
         |  epsilon
-return_stmt ::= "return" ";" 
-        |  "return" expr ";"               
-# operators in order of increasing precedence      
+return_stmt ::= "return" ";"
+        |  "return" expr ";"
+# operators in order of increasing precedence
 expr ::= IDENT "=" expr
         | rval
-rval ::= rval "||" rval                                              
-        | rval "&&" rval                                             
-        | rval "==" rval | rval "!=" rval                            
+rval ::= rval "||" rval
+        | rval "&&" rval
+        | rval "==" rval | rval "!=" rval
         | rval "<=" rval | rval "<" rval | rval ">=" rval | rval ">" rval
         | rval "+" rval  | rval "-" rval
         | rval "*" rval  | rval "/" rval  | rval "%" rval
         | "-" rval | "!" rval
         | "(" expr ")"
-        | IDENT | IDENT "(" args ")" 
-        | INT_LIT | FLOAT_LIT | BOOL_LIT        
-args ::= arg_list 
+        | IDENT | IDENT "(" args ")"
+        | INT_LIT | FLOAT_LIT | BOOL_LIT
+args ::= arg_list
         |  epsilon
 arg_list ::= arg_list "," expr
-        |  expr          
+        |  expr
 ```
 
-# Refactoring Plan
-Phase 1: Tokens Module
+# Grammar LL(k)
+I clarified with the module organiser that it was fine to use EBNF as opposed to
+BNF standalone.
 
-  Create tokens/token.h and tokens/token.cpp:
-  - Move TOKEN_TYPE enum
-  - Move TOKEN class definition and method implementations
-  - Global variables: globalLexeme, lineNo, columnNo
+Using Extended-BNF (EBNF), we define our formal operators as, with BNF:
+```
+optional     ::= "[" expression "]"              (* zero or one occurrence *)
+repetition   ::= "{" expression "}"              (* zero or more occurrences *)
+repetition   ::= expression "*"                  (* zero or more occurrences *)
+positive-rep ::= expression "+"                  (* one or more occurrences *)
 
-  Phase 2: Lexer Module
+grouping     ::= "(" expression ")"              (* grouping without capture *)
 
-  Create lexer/lexer.h and lexer/lexer.cpp:
-  - Move gettok() function
-  - Move returnTok() helper
-  - Declare extern FILE *pFile (definition stays in main)
-  - Include tokens/token.h
+exception    ::= expression "-" expression       (* all from first except second *)
+```
 
-  Phase 3: AST Module
+Our grammar is then as follows:
+```
+program ::= extern_list decl_list
+        | decl_list
+extern_list ::= extern+ 
+extern ::= "extern" type_spec IDENT "(" params ")" ";"
+decl_list ::= decl+
+decl ::= var_decl
+        |  fun_decl
+var_decl ::= var_type IDENT ";"
+type_spec ::= "void"
+        |  var_type
+var_type  ::= "int" |  "float" |  "bool"
+fun_decl ::= type_spec IDENT "(" params ")" block
+params ::= [param_list] | "void"
+param_list ::= param ("," param)* 
+param ::= var_type IDENT
+block ::= "{" local_decls stmt_list "}"
+local_decls ::= local_decl*
+local_decl ::= var_type IDENT ";"
+stmt_list ::= stmt*
+stmt ::= expr_stmt
+        |  block
+        |  if_stmt
+        |  while_stmt
+        |  return_stmt
+expr_stmt ::= expr ";"
+        |  ";"
+while_stmt ::= "while" "(" expr ")" stmt
+if_stmt ::= "if" "(" expr ")" block else_stmt
+else_stmt  ::= ["else" block]
+return_stmt ::= "return" ";"
+        |  "return" expr ";"
+expr ::= IDENT "=" expr
+        | or_expr 
+or_expr ::= and_expr ("||" and_expr)*
+and_expr ::= eq_expr ("&&" eq_expr)*
+eq_expr ::= rel_expr (("==" | "!=") rel_expr)*
+rel_expr ::= add_expr (("<=" | "<" | ">=" | ">") add_expr)*
+add_expr ::= mul_expr (("+" | "-" | "%") mul_expr)*
+mul_expr ::= unary_expr (("*" | "/" | "%") unary_expr)*
+unary_expr ::= "-" unary_expr
+        | "!" unary_expr
+        | primary
+primary ::= "(" expr ")"
+        | IDENT "(" args ")"
+        | IDENT 
+        | INT_LIT
+        | FLOAT_LIT 
+        | BOOL_LIT 
+args ::= arg_list
+        |  epsilon
+arg_list ::= expr ("," expr)*
+```
 
-  Create ast/ast.h and ast/ast.cpp:
-  - Move all AST node class declarations to header
-  - Move codegen() method implementations to cpp (currently minimal/abstract)
-  - Include LLVM headers needed for AST
-
-  Phase 4: Parser Module
-
-  Create parser/parser.h and parser/parser.cpp:
-  - Move CurTok, tok_buffer globals
-  - Move getNextToken(), putBackToken()
-  - Move all Parse*() functions
-  - Move LogError*() functions
-
-  Phase 5: Code Generation Module
-
-  Create codegen/codegen.h and codegen/codegen.cpp:
-  - Move LLVM globals: TheContext, Builder, TheModule
-  - Initialization functions
-  - Later: full codegen() implementations from AST classes
-
-  Phase 6: Main Driver
-
-  Update src/mccomp.cpp:
-  - Keep only main() function and pFile global
-  - Include all module headers
-  - Orchestrate compilation pipeline
-
-  Phase 7: Update Build & Test
-
-  - Verify Makefile still works (should be automatic)
-  - Test compilation
+This grammar is now LL(3), with the highest lookahead declaration stemming from `decl`.
