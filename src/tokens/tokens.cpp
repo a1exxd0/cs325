@@ -13,8 +13,6 @@ auto Token::buildToken(TokenType tokenType, std::string_view fileName,
   token.lexeme = std::move(lexeme);
 
   switch (tokenType) {
-  case TokenType::IDENT:
-    assert(!token.lexeme.empty());
   case TokenType::INT_LIT:
     int lexemeAsInt;
     if (!llvm::to_integer<int>(token.lexeme, lexemeAsInt)) {

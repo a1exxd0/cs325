@@ -31,6 +31,7 @@ class Parser {
   std::optional<Token> currentToken;
   std::deque<Token> tokenBuffer;
 
+public:
   // Advance the state of the parser w.r.t. the lexer
   auto getNextToken(Lexer &lexer) -> Token {
     if (tokenBuffer.size() == 0)
@@ -43,7 +44,6 @@ class Parser {
     return temp;
   }
 
-public:
   auto peekNextToken(const Lexer &lexer) const -> Token {
     auto token =
         (tokenBuffer.size() == 0) ? lexer.peekToken() : tokenBuffer.front();
@@ -51,17 +51,14 @@ public:
     return token;
   }
 
-  // program ::= extern_list decl_list
-  void parseProgram(Lexer &lexer) {
-    auto currTokType = curTok.value().getTokenType();
-    if (currTokType == TokenType::EOF_TOK)
-      return;
-    ParseExternList(lexer);
-    if (currTokType == TokenType::EOF_TOK)
-      return;
-    ParseDeclList(lexer);
-    if (currTokType == TokenType::EOF_TOK)
-      return;
+  // Peek forward n tokens, default 1
+  auto peekNextToken(const Lexer &lexer, std::size_t n) const -> Token {
+    auto token =
+        (tokenBuffer.size() >= n) ? tokenBuffer[n - 1] : lexer.peekToken(n);
+
+    return token;
   }
+
+  auto parseProgram(Lexer &lexer) -> void { return; }
 };
 } // namespace mccomp

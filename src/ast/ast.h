@@ -23,7 +23,7 @@ class IntASTnode : public ASTnode {
 public:
   IntASTnode(Token tok, int val) : Val(val), Tok(tok) {}
   virtual llvm::Value *codegen() override;
-  const std::string getType() const { return Tok.getLexeme().value(); }
+  const std::string getType() const { return Tok.getLexeme(); }
 };
 
 /// BoolASTnode - Class for boolean literals true and false,
@@ -34,7 +34,7 @@ class BoolASTnode : public ASTnode {
 public:
   BoolASTnode(Token tok, bool B) : Bool(B), Tok(tok) {}
   virtual llvm::Value *codegen();
-  const std::string getType() const { return Tok.getLexeme().value(); }
+  const std::string getType() const { return Tok.getLexeme(); }
 };
 
 /// FloatASTnode - Node class for floating point literals like "1.0".
@@ -45,7 +45,7 @@ class FloatASTnode : public ASTnode {
 public:
   FloatASTnode(Token tok, double Val) : Val(Val), Tok(tok) {}
   virtual llvm::Value *codegen();
-  const std::string getType() const { return Tok.getLexeme().value(); }
+  const std::string getType() const { return Tok.getLexeme(); }
 };
 
 /// VariableASTnode - Class for referencing a variable (i.e. identifier), like
@@ -61,7 +61,7 @@ public:
   VariableASTnode(Token tok, const std::string &Name)
       : Tok(tok), Name(Name), VarType(IDENT_TYPE::IDENTIFIER) {}
   const std::string &getName() const { return Name; }
-  const std::string getType() const { return Tok.getLexeme().value(); }
+  const std::string getType() const { return Tok.getLexeme(); }
   IDENT_TYPE getVarType() const { return VarType; }
   virtual llvm::Value *codegen();
 };
