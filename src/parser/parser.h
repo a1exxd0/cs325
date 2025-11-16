@@ -5,25 +5,6 @@
 
 namespace mccomp {
 
-/// LogError* - These are little helper function for error handling.
-std::unique_ptr<ASTnode> LogError(Token tok, const char *Str) {
-  fprintf(stderr, "%d:%d Error: %s\n", tok.getLineNo(), tok.getColumnNo(), Str);
-  exit(2);
-  return nullptr;
-}
-
-std::unique_ptr<FunctionPrototypeAST> LogErrorP(Token tok, const char *Str) {
-  LogError(tok, Str);
-  exit(2);
-  return nullptr;
-}
-
-std::unique_ptr<ASTnode> LogError(const char *Str) {
-  fprintf(stderr, "Error: %s\n", Str);
-  exit(2);
-  return nullptr;
-}
-
 class Parser {
   /// CurTok/getNextToken - Provide a simple token buffer.  CurTok is the
   /// current token the parser is looking at.  getNextToken reads another token
