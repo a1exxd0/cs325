@@ -73,7 +73,7 @@ int main(int argc, char **argv) {
   auto parser = mccomp::Parser();
 
   // get the first token
-  auto currentToken = parser.getNextToken(lexer).value();
+  auto currentToken = parser.getNextToken(lexer);
   while (currentToken.getTokenType() != mccomp::TokenType::EOF_TOK) {
     if (currentToken.getTokenType() == mccomp::TokenType::INT_LIT) {
       fprintf(stderr, "Token: %d with type %d\n", currentToken.getInt().value(),
@@ -86,7 +86,7 @@ int main(int argc, char **argv) {
               currentToken.getLexeme().value().c_str(),
               currentToken.getTokenType());
     }
-    currentToken = parser.getNextToken(lexer).value();
+    currentToken = parser.getNextToken(lexer);
   }
   fprintf(stderr, "Lexer Finished\n");
 

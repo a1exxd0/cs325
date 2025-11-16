@@ -32,31 +32,30 @@ class Parser {
   /// CurTok/getNextToken - Provide a simple token buffer.  CurTok is the
   /// current token the parser is looking at.  getNextToken reads another token
   /// from the lexer and updates CurTok with its results.
-  std::optional<Token> curTok;
-  std::deque<Token> tokBuffer;
+  std::optional<Token> currentToken;
+  std::deque<Token> tokenBuffer;
 
 public:
-  auto getNextToken(Lexer &lexer) -> std::optional<Token> {
-    if (tokBuffer.size() == 0)
-      tokBuffer.push_back(lexer.getToken());
+  auto getNextToken(Lexer &lexer) -> Token {
+    if (tokenBuffer.size() == 0)
+      tokenBuffer.push_back(lexer.getToken());
 
-    auto temp = tokBuffer.front();
-    tokBuffer.pop_front();
+    auto temp = tokenBuffer.front();
+    tokenBuffer.pop_front();
+    currentToken = temp;
 
-    return curTok = temp;
+    return temp;
   }
 
-  auto peekNextToken(const Lexer &lexer) const -> std::optional<Token> {
-    if (tokBuffer.size() == 0)
+  auto peekNextToken(const Lexer &lexer) const -> Token {
+    if (tokenBuffer.size() == 0)
       return lexer.peekToken();
 
     auto token =
-        (tokBuffer.size() == 0) ? lexer.peekToken() : tokBuffer.front();
+        (tokenBuffer.size() == 0) ? lexer.peekToken() : tokenBuffer.front();
 
     return token;
   }
-
-  auto putBackToken(Token tok) -> void { tokBuffer.push_front(tok); }
 
   // element ::= FLOAT_LIT
   std::unique_ptr<ASTnode> ParseFloatNumberExpr(Lexer &lexer) {
