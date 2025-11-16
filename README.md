@@ -65,16 +65,28 @@ arg_list ::= arg_list "," expr
 ```
 
 # Grammar LL(k)
+I clarified with the module organiser that it was fine to use EBNF as opposed to
+BNF standalone.
 
+Using Extended-BNF (EBNF), we define our formal operators as, with BNF:
+```
+optional     ::= "[" expression "]"              (* zero or one occurrence *)
+repetition   ::= "{" expression "}"              (* zero or more occurrences *)
+repetition   ::= expression "*"                  (* zero or more occurrences *)
+positive-rep ::= expression "+"                  (* one or more occurrences *)
+
+grouping     ::= "(" expression ")"              (* grouping without capture *)
+
+exception    ::= expression "-" expression       (* all from first except second *)
+```
+
+Our grammar is then as follows:
 ```
 program ::= extern_list decl_list
         | decl_list
-extern_list ::= extern extern_list_tail
-extern_list_tail ::= extern extern_list_tail
-        | ε
+extern_list ::= extern+ 
 extern ::= "extern" type_spec IDENT "(" params ")" ";"
-decl_list ::= decl_list decl
-        |  decl
+decl_list ::= decl+
 decl ::= var_decl
         |  fun_decl
 var_decl ::= var_type IDENT ";"
@@ -82,17 +94,13 @@ type_spec ::= "void"
         |  var_type
 var_type  ::= "int" |  "float" |  "bool"
 fun_decl ::= type_spec IDENT "(" params ")" block
-params ::= param_list
-        |  "void" | epsilon
-param_list ::= param_list "," param
-        |  param
+params ::= [param_list] | "void"
+param_list ::= param ("," param)* 
 param ::= var_type IDENT
 block ::= "{" local_decls stmt_list "}"
-local_decls ::= local_decls local_decl
-        |  epsilon
+local_decls ::= local_decl*
 local_decl ::= var_type IDENT ";"
-stmt_list ::= stmt_list stmt
-        |  epsilon
+stmt_list ::= stmt*
 stmt ::= expr_stmt
         |  block
         |  if_stmt
@@ -102,25 +110,29 @@ expr_stmt ::= expr ";"
         |  ";"
 while_stmt ::= "while" "(" expr ")" stmt
 if_stmt ::= "if" "(" expr ")" block else_stmt
-else_stmt  ::= "else" block
-        |  epsilon
+else_stmt  ::= ["else" block]
 return_stmt ::= "return" ";"
         |  "return" expr ";"
-# operators in order of increasing precedence
 expr ::= IDENT "=" expr
-        | rval
-rval ::= rval "||" rval
-        | rval "&&" rval
-        | rval "==" rval | rval "!=" rval
-        | rval "<=" rval | rval "<" rval | rval ">=" rval | rval ">" rval
-        | rval "+" rval  | rval "[48;67;127;2144;1778t-" rval
-        | rval "*" rval  | rval "/" rval  | rval "%" rval
-        | "-" rval | "!" rval
-        | "(" expr ")"
-        | IDENT | IDENT "(" args ")"
-        | INT_LIT | FLOAT_LIT | BOOL_LIT
+        | or_expr 
+or_expr ::= and_expr ("||" and_expr)*
+and_expr ::= eq_expr ("&&" eq_expr)*
+eq_expr ::= rel_expr (("==" | "!=") rel_expr)*
+rel_expr ::= add_expr (("<=" | "<" | ">=" | ">") add_expr)*
+add_expr ::= mul_expr (("+" | "-" | "%") mul_expr)*
+mul_expr ::= unary_expr (("*" | "/" | "%") unary_expr)*
+unary_expr ::= "-" unary_expr
+        | "!" unary_expr
+        | primary
+primary ::= "(" expr ")"
+        | IDENT "(" args ")"
+        | IDENT 
+        | INT_LIT
+        | FLOAT_LIT 
+        | BOOL_LIT 
 args ::= arg_list
         |  epsilon
-arg_list ::= arg_list "," expr
-        |  expr
+arg_list ::= expr ("," expr)*
 ```
+
+This grammar is now LL(3), with the highest lookahead declaration stemming from `decl`.
