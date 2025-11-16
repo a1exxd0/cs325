@@ -1,5 +1,5 @@
 CXX := clang++
-BASE_CXXFLAGS := -std=c++17 -Wall -Wextra -O0 -g -Ithird_party/fmt/include 
+BASE_CXXFLAGS := -std=c++17 -Wall -Wextra -O0 -g -Ithird_party/fmt/include -Ithird_party/expected/include 
 
 # get llvm cxxflags and ldflags separately
 LLVM_CXXFLAGS := $(shell llvm-config --cxxflags)
