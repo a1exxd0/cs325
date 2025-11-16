@@ -1,104 +1,81 @@
 #include <iostream>
-#include <optional>
 #include <tokens/tokens.h>
-#include <variant>
 
 namespace mccomp {
+Token::Token() {}
+auto Token::buildToken(TokenType tokenType, std::string_view fileName,
+                       std::size_t lineNo, std::size_t columnNo,
+                       std::string &&lexeme) -> Token {
+  Token token;
+  token.tokenType = tokenType;
+  token.lineNo = lineNo;
+  token.columnNo = columnNo;
+  token.lexeme = std::move(lexeme);
 
-Token::Token(TokenType tokenType, std::string_view fileName, std::size_t lineNo,
-             std::size_t columnNo, std::string &&lexeme)
-    : tokenType(tokenType), lineNo(lineNo), columnNo(columnNo) {
-  switch (this->tokenType) {
+  switch (tokenType) {
   case TokenType::IDENT:
-    assert(!lexeme.empty());
-    this->lexeme = std::move(lexeme);
-    return;
+    assert(!token.lexeme.empty());
   case TokenType::INT_LIT:
-    assert(!lexeme.empty());
     int lexemeAsInt;
-
-    if (llvm::to_integer<int>(lexeme, lexemeAsInt)) {
-      this->lexeme = lexemeAsInt;
-    } else {
-      auto error =
-          ClangError(ClangErrorSeverity::ERROR, fileName, lineNo, columnNo,
-                     "failed to convert integer lexeme to int");
+    if (!llvm::to_integer<int>(token.lexeme, lexemeAsInt)) {
+      auto error = ClangError(
+          ClangErrorSeverity::ERROR, fileName, lineNo, columnNo,
+          "failed to convert integer lexeme to int (THIS IS A LEX ERROR)");
       std::cerr << to_string(error) << std::endl;
       exit(2);
     }
-    return;
+
+    token.value = lexemeAsInt;
+    break;
   case TokenType::FLOAT_LIT:
-    assert(!lexeme.empty());
     double lexemeAsFloat;
-
-    if (llvm::to_float(lexeme, lexemeAsFloat)) {
-      this->lexeme = lexemeAsFloat;
-    } else {
-      auto error =
-          ClangError(ClangErrorSeverity::ERROR, fileName, lineNo, columnNo,
-                     "failed to convert float lexeme to float");
+    if (!llvm::to_float(token.lexeme, lexemeAsFloat)) {
+      auto error = ClangError(
+          ClangErrorSeverity::ERROR, fileName, lineNo, columnNo,
+          "failed to convert float lexeme to float (THIS IS A LEX ERROR)");
       std::cerr << to_string(error) << std::endl;
       exit(2);
     }
-    return;
+    token.value = lexemeAsFloat;
+    break;
   case TokenType::BOOL_LIT:
-    if (lexeme == "true") {
-      this->lexeme = true;
-    } else if (lexeme == "false") {
-      this->lexeme = false;
-    } else {
+    if (token.lexeme != "true" && token.lexeme != "false") {
       auto error =
           ClangError(ClangErrorSeverity::ERROR, fileName, lineNo, columnNo,
                      "failed to convert bool lexeme to bool");
       std::cerr << to_string(error) << std::endl;
       exit(2);
     }
-    return;
+
+    token.value = token.lexeme == "true";
+    break;
   default:
-    this->lexeme = lexeme;
-  }
-}
-
-auto Token::getInt() const -> std::optional<int> {
-  if (this->tokenType != TokenType::INT_LIT) {
-    return std::nullopt;
   }
 
-  return std::get<int>(this->lexeme);
+  return token;
 }
 
-auto Token::getFloat() const -> std::optional<double> {
-  if (this->tokenType != TokenType::FLOAT_LIT) {
-    return std::nullopt;
-  }
-
-  return std::get<double>(this->lexeme);
+auto Token::asInt() const -> int {
+  assert(this->tokenType == TokenType::INT_LIT);
+  return std::get<int>(this->value);
 }
 
-auto Token::getBool() const -> std::optional<bool> {
-  if (this->tokenType != TokenType::BOOL_LIT) {
-    return std::nullopt;
-  }
-
-  return std::get<bool>(this->lexeme);
+auto Token::asFloat() const -> double {
+  assert(this->tokenType == TokenType::FLOAT_LIT);
+  return std::get<double>(this->value);
 }
 
-auto Token::getIdent() const -> std::optional<std::string> {
-  if (this->tokenType != TokenType::IDENT) {
-    return std::nullopt;
-  }
-
-  return std::get<std::string>(this->lexeme);
+auto Token::asBool() const -> bool {
+  assert(this->tokenType == TokenType::BOOL_LIT);
+  return std::get<bool>(this->value);
 }
 
-auto Token::getLexeme() const -> std::optional<std::string> {
-  if (!std::holds_alternative<std::string>(this->lexeme)) {
-    return std::nullopt;
-  }
-
-  return std::get<std::string>(this->lexeme);
+auto Token::asIdent() const -> const std::string & {
+  assert(this->tokenType == TokenType::IDENT);
+  return this->lexeme;
 }
 
+auto Token::getLexeme() const -> const std::string & { return this->lexeme; }
 auto Token::getLineNo() const noexcept -> int { return this->lineNo; }
 auto Token::getColumnNo() const noexcept -> int { return this->columnNo; }
 auto Token::getTokenType() const noexcept -> TokenType {

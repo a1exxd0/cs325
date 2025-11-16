@@ -3,9 +3,9 @@
 #include <cassert>
 #include <error/error.h>
 #include <llvm/ADT/StringExtras.h>
-#include <optional>
 #include <string>
 #include <string_view>
+#include <tl/expected.hpp>
 #include <variant>
 
 namespace mccomp {
@@ -77,12 +77,15 @@ enum class TokenType {
 
 // Token class is used to keep track of information about a token
 class Token {
-  using TokenVariant = std::variant<std::string, int, double, bool>;
+  using TokenVariant = std::variant<std::monostate, int, double, bool>;
 
-  TokenVariant lexeme = 0;
+  std::string lexeme;
+  TokenVariant value;
   TokenType tokenType;
   int lineNo;
   int columnNo;
+
+  Token();
 
 public:
   // Constructs a Token and converts the lexeme to the appropriate internal
@@ -96,24 +99,23 @@ public:
   // - lexeme must not be empty for IDENT, INT_LIT, and FLOAT_LIT tokens
   // - lexeme must be "true" or "false" for BOOL_LIT tokens
   // - Program exits with code 2 if type conversion fails
-  Token(TokenType tokenType, std::string_view fileName, std::size_t lineNo,
-        std::size_t columnNo, std::string &&lexeme);
+  static auto buildToken(TokenType tokenType, std::string_view fileName,
+                         std::size_t lineNo, std::size_t columnNo,
+                         std::string &&lexeme) -> Token;
 
-  // Returns nullopt if the token is not an identifier
-  auto getIdent() const -> std::optional<std::string>;
+  // Asserts the value is an identifier, and returns the value
+  auto asIdent() const -> const std::string &;
 
-  // Returns nullopt if the token is not an integer literal
-  auto getInt() const -> std::optional<int>;
+  // Asserts value is an int literal, then returns value
+  auto asInt() const -> int;
 
-  // Returns nullopt if the token is not a float literal
-  auto getFloat() const -> std::optional<double>;
+  // Asserts value is a float literal then returns value
+  auto asFloat() const -> double;
 
-  // Returns nullopt if the token is not a bool literal
-  auto getBool() const -> std::optional<bool>;
+  // Asserts value is a bool literal then returns value
+  auto asBool() const -> bool;
 
-  // Returns lexeme value if valid, else nullopt
-  auto getLexeme() const -> std::optional<std::string>;
-
+  auto getLexeme() const -> const std::string &;
   auto getLineNo() const noexcept -> int;
   auto getColumnNo() const noexcept -> int;
   auto getTokenType() const noexcept -> TokenType;
