@@ -2,3 +2,4 @@
 mccomp
 build/*
 .cache/
+scripts/venv/

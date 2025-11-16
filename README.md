@@ -112,8 +112,7 @@ stmt ::= expr_stmt
         |  if_stmt
         |  while_stmt
         |  return_stmt
-expr_stmt ::= expr ";"
-        |  ";"
+expr_stmt ::= [expr] ";"
 while_stmt ::= "while" "(" expr ")" stmt
 if_stmt ::= "if" "(" expr ")" block else_stmt
 else_stmt  ::= ["else" block]
