@@ -1,90 +1,10 @@
-#include <llvm/IR/DerivedTypes.h>
-#include <llvm/IR/Function.h>
-#include <string>
-#include <tokens/tokens.h>
-#include <vector>
+#pragma once
 
-namespace mccomp {
-
-class ASTVisitor;
-class ConstASTVisitor;
-
-class SourceLocation {
-  std::optional<std::string> fileName;
-  std::size_t lineNo;
-  std::size_t startColumnNo;
-  std::size_t endColumnNo;
-
-public:
-  struct View {
-    std::optional<std::string_view> fileName;
-    std::size_t lineNo;
-    std::size_t startColumnNo;
-    std::size_t endColumnNo;
-  };
-
-  SourceLocation() = delete;
-  SourceLocation(std::size_t lineNo, std::size_t columnNo,
-                 std::size_t endColumnNo);
-  SourceLocation(std::size_t lineNo, std::size_t columnNo,
-                 std::size_t endColumnNo, std::string fileName);
-
-  auto getView() const -> SourceLocation::View;
-};
-
-/// ASTnode - Base class for all AST nodes.
-class ASTNode {
-public:
-  // Heavy inspiration from `clang` implementation of node classes.
-  enum NodeKind {
-    // `program` in grammar
-    NK_TranslationUnit,
-
-    NK_ExternDecl,
-    NK_FunctionDecl,
-    NK_VarDecl,
-    NK_ParmVarDecl,
-
-    // `block` in grammar
-    NK_CompoundStmt,
-    NK_IfStmt,
-    NK_WhileStmt,
-    NK_ReturnStmt,
-    NK_DeclStmt,
-
-    NK_CallExpr,
-    NK_ParenExpr,
-    NK_DeclRefExpr,
-    NK_ArraySubscriptExpr,
-    NK_ImplicitCastExpr,
-
-    NK_BinaryOperator,
-    NK_UnaryOperator,
-
-    NK_IntegerLiteral,
-    NK_FloatLiteral,
-    NK_BoolLiteral,
-  };
-
-protected:
-  NodeKind nodeKind;
-  SourceLocation sourceLocation;
-  explicit ASTNode(NodeKind nodeKind, SourceLocation sourceLocation);
-
-public:
-  ASTNode(const ASTNode &) = delete;
-  ASTNode &operator=(const ASTNode &) = delete;
-  ASTNode(ASTNode &&) = default;
-  ASTNode &operator=(ASTNode &&) = default;
-  virtual ~ASTNode() {}
-
-  auto getKind() const -> NodeKind;
-  auto getLocation() const -> SourceLocation::View;
-
-  virtual auto accept(ASTVisitor &visitor) -> void = 0;
-  virtual auto accept(ConstASTVisitor &visitor) const -> void = 0;
-  virtual auto getChildren() -> std::vector<ASTNode *> = 0;
-  virtual auto getChildren() const -> std::vector<const ASTNode *> = 0;
-};
-
-} // namespace mccomp
+#define ALLOWED_INCLUDE
+#include <ast/_internal/ast_node.h>
+#include <ast/_internal/decl_node.h>
+#include <ast/_internal/expr_node.h>
+#include <ast/_internal/stmt_node.h>
+#include <ast/_internal/translation_unit.h>
+#include <ast/_internal/visitor.h>
+#undef ALLOWED_INCLUDE
