@@ -1,3 +1,5 @@
+#pragma once
+
 #include <ast/_internal/type.h>
 #include <llvm/Support/Allocator.h>
 
