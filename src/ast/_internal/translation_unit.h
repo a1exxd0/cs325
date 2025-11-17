@@ -5,7 +5,7 @@
 
 namespace mccomp {
 
-class TranslationUnit : public ASTNode {
+class TranslationUnit final : public ASTNode {
   std::vector<ASTNode *> externs;
   std::vector<ASTNode *> decls;
 

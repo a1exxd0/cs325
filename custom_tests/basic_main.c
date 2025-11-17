@@ -1,12 +1,12 @@
 float myFunc(float a, float b) {
-  float z[1] = {2.1};
+  float z[1][2] = {{2.1, 3.2}};
 
   if (a == b) {
-    z[0] = 1.0;
-    z[0] = -z[0];
+    z[0][0] = 1.0;
+    z[0][0] = -z[0][0];
   }
 
-  float c = z[0];
+  float c = z[0][0];
   return a + b + c;
 }
 
