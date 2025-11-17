@@ -12,6 +12,10 @@ positive-rep ::= expression "+"                  (* one or more occurrences *)
 grouping ::= "(" expression ")"              (* grouping without capture *)
 ```
 
+For precedence of operators, I followed both a reference to the orignally specified coursework
+grammar, and [cppreference](https://en.cppreference.com/w/c/language/operator_precedence.html)
+directly. Note that there are precedence levels alongside associativity mentions.
+
 This grammar is now LL(3), with the highest lookahead declaration stemming from `decl`.
 
 ```
