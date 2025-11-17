@@ -1,4 +1,4 @@
-#include <ast/ast.h>
+#include "ast/_internal/ast_node.h"
 
 namespace mccomp {
 
