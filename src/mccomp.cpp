@@ -121,9 +121,10 @@ int main(int argc, char **argv) {
   printf(
       "********************* FINAL IR (end) ******************************\n");
 
-  auto demoError = mccomp::ClangError(
-      mccomp::ClangErrorSeverity::ERROR, "custom_tests/hello.c", 1, 18,
-      {22, 28}, "failed to convert integer lexeme to int");
+  auto demoError =
+      mccomp::ClangError(mccomp::ClangErrorSeverity::ERROR,
+                         "custom_tests/string_to_int_assignment.c", 1, 18,
+                         {22, 28}, "failed to convert integer lexeme to int");
 
   std::cout << demoError.to_string() << std::endl;
 
