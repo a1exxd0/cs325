@@ -28,7 +28,6 @@ public:
   virtual ~ASTVisitor() = default;
 
   virtual auto visitTranslationUnit(TranslationUnit &) -> void;
-  virtual auto visitExternDecl(ExternDecl &) -> void;
   virtual auto visitFunctionDecl(FunctionDecl &) -> void;
   virtual auto visitVarDecl(VarDecl &) -> void;
   virtual auto visitParmVarDecl(ParmVarDecl &) -> void;
@@ -54,7 +53,6 @@ public:
   virtual ~ConstASTVisitor() = default;
 
   virtual auto visitTranslationUnit(const TranslationUnit &) -> void;
-  virtual auto visitExternDecl(const ExternDecl &) -> void;
   virtual auto visitFunctionDecl(const FunctionDecl &) -> void;
   virtual auto visitVarDecl(const VarDecl &) -> void;
   virtual auto visitParmVarDecl(const ParmVarDecl &) -> void;
