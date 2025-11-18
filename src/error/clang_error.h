@@ -49,6 +49,8 @@ class ClangError {
   const std::optional<std::pair<std::size_t, std::size_t>> errorRange;
 
 public:
+  ClangError(ClangErrorSeverity severity, std::string &&message);
+
   ClangError(ClangErrorSeverity severity, std::string_view fileName,
              std::size_t lineNo, std::size_t columnNo, std::string &&message);
 

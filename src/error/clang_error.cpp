@@ -12,6 +12,8 @@ namespace {
 const std::unordered_set<std::string> keywords = {
     "extern", "if", "else", "while", "return", "void", "int", "float", "bool"};
 
+static const char *invalid_sloc = "<invalid sloc>";
+
 constexpr auto severity_color(mccomp::ClangErrorSeverity s) -> const char * {
   switch (s) {
   case mccomp::ClangErrorSeverity::NOTE:
@@ -104,11 +106,19 @@ ClangError::ClangError(ClangErrorSeverity severity, std::string_view fileName,
     : lineNo(lineNo), columnNo(columnNo), fileName(std::string(fileName)),
       severity(severity), message(std::move(message)), errorRange(errorRange) {}
 
+ClangError::ClangError(ClangErrorSeverity severity, std::string &&message)
+    : lineNo(0), columnNo(0), fileName(invalid_sloc), severity(severity),
+      message(std::move(message)), errorRange() {}
+
 auto ClangError::to_string() const noexcept -> std::string {
   auto out = fmt::format("{}{}:{}:{}: {}{}: {}{}{}\n", text_colors::BOLD,
                          fileName, lineNo, columnNo, severity_color(severity),
                          mccomp::to_string(severity), text_colors::RESET,
                          text_colors::BOLD, message, text_colors::RESET);
+
+  if (fileName == invalid_sloc) {
+    return out;
+  }
 
   auto line = this->violatingLine();
   auto coloredLine = highlight_keywords(line, errorRange);
