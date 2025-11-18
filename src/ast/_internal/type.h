@@ -50,9 +50,17 @@ public:
   auto getDimensions() const -> const std::vector<std::size_t> & {
     return dims;
   }
+
+  auto operator==(const ArrayType &other) const noexcept -> bool {
+    auto sameUnderlying = this->elementType == other.elementType;
+    auto sameDimSize = this->dims == other.dims;
+
+    return sameUnderlying && sameDimSize;
+  }
 };
 
 class ArrayTypeHash {
+public:
   auto operator()(const ArrayType &type) const noexcept -> std::size_t {
     auto hsh = std::hash<Type *>{}(type.getElementType());
     for (auto i = std::uint8_t(); i < type.getDimensions().size(); ++i) {
