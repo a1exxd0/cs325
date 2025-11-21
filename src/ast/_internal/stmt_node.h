@@ -11,12 +11,17 @@ public:
 };
 
 class CompoundStmt final : public Stmt {
+  std::vector<DeclStmt *> decls;
   std::vector<ASTNode *> stmts;
 
 public:
-  CompoundStmt(std::vector<ASTNode *> stmts, SourceLocation loc)
-      : Stmt(NK_CompoundStmt, std::move(loc)), stmts(std::move(stmts)) {}
+  CompoundStmt(std::vector<DeclStmt *> decls, std::vector<ASTNode *> stmts,
+               SourceLocation loc)
+      : Stmt(NK_CompoundStmt, std::move(loc)), decls(std::move(decls)),
+        stmts(std::move(stmts)) {}
 
+  auto getDecls() -> std::vector<DeclStmt *> & { return decls; }
+  auto getDecls() const -> const std::vector<DeclStmt *> & { return decls; }
   auto getStmts() -> std::vector<ASTNode *> & { return stmts; }
   auto getStmts() const -> const std::vector<ASTNode *> & { return stmts; }
 
@@ -28,10 +33,20 @@ public:
     visitor.visitCompoundStmt(*this);
   }
 
-  auto getChildren() -> std::vector<ASTNode *> override { return stmts; }
+  auto getChildren() -> std::vector<ASTNode *> override {
+    auto children = std::vector<ASTNode *>();
+    children.reserve(decls.size() + stmts.size());
+    children.insert(children.end(), decls.begin(), decls.end());
+    children.insert(children.end(), stmts.begin(), stmts.end());
+    return children;
+  }
 
   auto getChildren() const -> std::vector<const ASTNode *> override {
-    return std::vector<const ASTNode *>(stmts.begin(), stmts.end());
+    auto children = std::vector<const ASTNode *>();
+    children.reserve(decls.size() + stmts.size());
+    children.insert(children.end(), decls.begin(), decls.end());
+    children.insert(children.end(), stmts.begin(), stmts.end());
+    return children;
   }
 };
 

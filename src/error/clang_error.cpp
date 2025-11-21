@@ -28,8 +28,8 @@ constexpr auto severity_color(mccomp::ClangErrorSeverity s) -> const char * {
 
 auto highlight_keywords(
     const std::string &line,
-    const std::optional<std::pair<std::size_t, std::size_t>> &errorRange)
-    -> std::string {
+    const std::optional<std::tuple<std::size_t, std::size_t, std::size_t>>
+        &errorRange) -> std::string {
   std::string out;
   out.reserve(line.size());
 
@@ -41,7 +41,21 @@ auto highlight_keywords(
   for (std::size_t i = 0; i < line.size();) {
     map[i] = out_i;
 
-    if (std::isalpha(line[i]) || line[i] == '_') {
+    if (std::isdigit(line[i])) {
+      std::size_t start = i;
+      while (i < line.size() && std::isdigit(line[i]))
+        i++;
+      std::string token = line.substr(start, i - start);
+
+      out += mccomp::text_colors::GREEN;
+      out += token;
+      out += mccomp::text_colors::RESET;
+      out_i += token.size() + std::strlen(mccomp::text_colors::GREEN) +
+               std::strlen(mccomp::text_colors::RESET);
+
+      for (std::size_t j = start; j < i; ++j)
+        map[j] = out_i;
+    } else if (std::isalpha(line[i]) || line[i] == '_') {
       std::size_t start = i;
       while (i < line.size() && (std::isalnum(line[i]) || line[i] == '_'))
         ++i;
@@ -73,7 +87,7 @@ auto highlight_keywords(
   if (!errorRange)
     return out;
 
-  auto [left, right] = *errorRange;
+  auto [_, left, right] = *errorRange;
   if (left >= right || left == 0 || left > line.size() ||
       right > line.size() + 1)
     return out;
@@ -97,68 +111,239 @@ ClangError::ClangError(ClangErrorSeverity severity, std::string_view fileName,
                        std::size_t lineNo, std::size_t columnNo,
                        std::string &&message)
     : lineNo(lineNo), columnNo(columnNo), fileName(std::string(fileName)),
-      severity(severity), message(std::move(message)), errorRange() {}
+      severity(severity), message(std::move(message)), errorRange(),
+      replacementSuggestion() {}
+
+ClangError::ClangError(
+    ClangErrorSeverity severity, std::string_view fileName, std::size_t lineNo,
+    std::size_t columnNo,
+    std::tuple<std::size_t, std::size_t, std::size_t> errorRange,
+    std::string &&message)
+    : lineNo(lineNo), columnNo(columnNo), fileName(std::string(fileName)),
+      severity(severity), message(std::move(message)), errorRange(errorRange),
+      replacementSuggestion() {}
 
 ClangError::ClangError(ClangErrorSeverity severity, std::string_view fileName,
                        std::size_t lineNo, std::size_t columnNo,
-                       std::pair<std::size_t, std::size_t> errorRange,
-                       std::string &&message)
+                       std::string replacementSuggestion, std::string &&message)
     : lineNo(lineNo), columnNo(columnNo), fileName(std::string(fileName)),
-      severity(severity), message(std::move(message)), errorRange(errorRange) {}
+      severity(severity), message(std::move(message)), errorRange(),
+      replacementSuggestion(replacementSuggestion) {}
+
+ClangError::ClangError(
+    ClangErrorSeverity severity, std::string_view fileName, std::size_t lineNo,
+    std::size_t columnNo, std::string replacementSuggestion,
+    std::tuple<std::size_t, std::size_t, std::size_t> errorRange,
+    std::string &&message)
+    : lineNo(lineNo), columnNo(columnNo), fileName(std::string(fileName)),
+      severity(severity), message(std::move(message)), errorRange(errorRange),
+      replacementSuggestion(std::move(replacementSuggestion)) {}
 
 ClangError::ClangError(ClangErrorSeverity severity, std::string &&message)
     : lineNo(0), columnNo(0), fileName(invalid_sloc), severity(severity),
-      message(std::move(message)), errorRange() {}
+      message(std::move(message)), errorRange(), replacementSuggestion() {}
 
 auto ClangError::to_string() const noexcept -> std::string {
-  auto out = fmt::format("{}{}:{}:{}: {}{}: {}{}{}\n", text_colors::BOLD,
-                         fileName, lineNo, columnNo, severity_color(severity),
-                         mccomp::to_string(severity), text_colors::RESET,
-                         text_colors::BOLD, message, text_colors::RESET);
+  std::string out = formatErrorHeader();
 
   if (fileName == invalid_sloc) {
     return out;
   }
 
-  auto line = this->violatingLine();
-  auto coloredLine = highlight_keywords(line, errorRange);
-  out += fmt::format(" {:>4} | {}\n", this->lineNo, coloredLine);
-
-  std::size_t caretPos = (columnNo > 0 ? columnNo : 1);
-  if (caretPos > line.size())
-    caretPos = line.size() > 0 ? line.size() : 1;
-
-  std::string underline(line.size(), ' ');
-
-  if (errorRange.has_value()) {
-    auto [left, right] = *errorRange;
-
-    if (left < right && left > 0 && right <= line.size()) {
-      for (std::size_t i = left - 1; i < right - 1; ++i)
-        underline[i] = '~';
-    }
+  auto lines = this->violatingLines();
+  if (lines.second) {
+    out += formatMultiLineError(lines.first, *lines.second);
+  } else {
+    out += formatSingleLineError(lines.first);
   }
 
-  if (caretPos - 1 < underline.size())
-    underline[caretPos - 1] = '^';
-
-  out += fmt::format("      | {}{}{}\n", text_colors::GREEN, underline,
-                     text_colors::RESET);
+  for (const auto &err : this->attached) {
+    out += err.to_string();
+  }
 
   return out;
 }
 
-auto ClangError::violatingLine() const -> std::string {
-  auto inFile = std::ifstream(fileName);
-  std::string line;
-  if (inFile.good()) {
-    for (std::size_t i = 1; i <= lineNo && std::getline(inFile, line); ++i) {
-      if (i == lineNo)
-        break;
+auto ClangError::formatErrorHeader() const noexcept -> std::string {
+  return fmt::format("{}{}:{}:{}: {}{}: {}{}{}\n", text_colors::BOLD, fileName,
+                     lineNo, columnNo, severity_color(severity),
+                     mccomp::to_string(severity), text_colors::RESET,
+                     text_colors::BOLD, message, text_colors::RESET);
+}
+
+auto ClangError::formatMultiLineError(const std::string &line1,
+                                      const std::string &line2) const noexcept
+    -> std::string {
+  auto [otherLineNo, left, right] = *errorRange;
+
+  // Ensure correct ordering of lines
+  auto [primaryLineNo, secondaryLineNo, primaryLine, secondaryLine] =
+      orderLines(lineNo, otherLineNo, line1, line2);
+
+  std::string out = formatErrorLine(primaryLineNo, primaryLine);
+  out += formatLineConnector(primaryLineNo, secondaryLineNo);
+  out += formatErrorLine(secondaryLineNo, secondaryLine);
+  out += formatMultiLineUnderline(secondaryLine, right);
+
+  return out;
+}
+
+auto ClangError::orderLines(std::size_t line1No, std::size_t line2No,
+                            const std::string &line1,
+                            const std::string &line2) const noexcept
+    -> std::tuple<std::size_t, std::size_t, std::string, std::string> {
+  if (line2No < line1No) {
+    return {line2No, line1No, line2, line1};
+  }
+  return {line1No, line2No, line1, line2};
+}
+
+auto ClangError::formatLineConnector(std::size_t fromLine,
+                                     std::size_t toLine) const noexcept
+    -> std::string {
+  std::string connector;
+  for (std::size_t i = fromLine + 1; i < toLine; ++i) {
+    connector += fmt::format(" {:>4} | {}\n", "", "|");
+  }
+  return connector;
+}
+
+auto ClangError::formatErrorLine(std::size_t lineNumber,
+                                 const std::string &line) const noexcept
+    -> std::string {
+  auto coloredLine = highlight_keywords(line, std::nullopt);
+  return fmt::format(" {:>4} | {}\n", lineNumber, coloredLine);
+}
+
+auto ClangError::formatMultiLineUnderline(const std::string &line,
+                                          std::size_t rightPos) const noexcept
+    -> std::string {
+  std::size_t lineLength = line.size();
+  if (lineLength == 0) {
+    return "";
+  }
+
+  std::string underline = createUnderlineString(lineLength, 0, rightPos);
+  underline = addCaretToUnderline(underline, columnNo, lineLength);
+
+  auto out = fmt::format("      | {}{}{}\n", text_colors::GREEN, underline,
+                         text_colors::RESET);
+
+  if (replacementSuggestion.has_value()) {
+    out += formatReplacementSuggestion(*replacementSuggestion, columnNo);
+  }
+
+  return out;
+}
+
+auto ClangError::formatSingleLineError(const std::string &line) const noexcept
+    -> std::string {
+  auto coloredLine = highlight_keywords(line, errorRange);
+  std::string out = fmt::format(" {:>4} | {}\n", this->lineNo, coloredLine);
+  out += formatSingleLineUnderline(line);
+  return out;
+}
+
+auto ClangError::formatSingleLineUnderline(
+    const std::string &line) const noexcept -> std::string {
+  std::string underline(line.size() + 1, ' ');
+
+  if (errorRange.has_value()) {
+    auto [lineNo, left, right] = *errorRange;
+    underline = createUnderlineString(line.size() + 1, left, right);
+  }
+
+  underline = addCaretToUnderline(underline, columnNo, line.size());
+  auto out = fmt::format("      | {}{}{}\n", text_colors::GREEN, underline,
+                         text_colors::RESET);
+
+  if (replacementSuggestion.has_value()) {
+    out += formatReplacementSuggestion(*replacementSuggestion, columnNo);
+  }
+
+  return out;
+}
+
+auto ClangError::createUnderlineString(std::size_t length, std::size_t left,
+                                       std::size_t right) const noexcept
+    -> std::string {
+  std::string underline(length, ' ');
+
+  if (right > 0 && right <= length + 1) {
+    // For multi-line case, underline from start to right position
+    if (left == 0) {
+      for (std::size_t i = 0; i < right - 1 && i < underline.size(); ++i) {
+        underline[i] = '~';
+      }
+    }
+    // For single-line case with valid range
+    else if (left < right && left > 0 && right <= length) {
+      for (std::size_t i = left - 1; i < right - 1 && i < underline.size();
+           ++i) {
+        underline[i] = '~';
+      }
     }
   }
 
-  return line;
+  return underline;
+}
+
+auto ClangError::addCaretToUnderline(std::string underline,
+                                     std::size_t caretColumn,
+                                     std::size_t lineLength) const noexcept
+    -> std::string {
+  std::size_t caretPos = normalizeCaretPosition(caretColumn, lineLength);
+
+  if (caretPos - 1 < underline.size()) {
+    underline[caretPos - 1] = '^';
+  }
+
+  return underline;
+}
+
+auto ClangError::normalizeCaretPosition(std::size_t column,
+                                        std::size_t lineLength) const noexcept
+    -> std::size_t {
+  std::size_t caretPos = (column > 0 ? column : 1);
+  if (caretPos > lineLength) {
+    caretPos = lineLength > 0 ? lineLength + 1 : 1;
+  }
+  fmt::println("caretPos: {}, col: {}, ll: {}", caretPos, column, lineLength);
+  return caretPos;
+}
+
+auto ClangError::formatReplacementSuggestion(
+    const std::string &suggestion, std::size_t caretColumn) const noexcept
+    -> std::string {
+  auto padding = std::string(std::max(static_cast<int>(caretColumn) -
+                                          static_cast<int>(suggestion.size()),
+                                      0),
+                             ' ');
+  return fmt::format("      | {}{}{}{}\n", text_colors::GREEN, padding,
+                     suggestion, text_colors::RESET);
+}
+
+auto ClangError::violatingLines() const
+    -> std::pair<std::string, std::optional<std::string>> {
+  auto inFile = std::ifstream(fileName);
+  std::string currLine;
+  std::string line;
+  std::optional<std::string> otherLine;
+
+  auto other = std::get<0>(this->errorRange.value_or(std::tuple(0, 0, 0)));
+
+  if (inFile.good()) {
+    for (std::size_t i = 1;
+         i <= std::max(lineNo, other) && std::getline(inFile, currLine); ++i) {
+      if (i == lineNo) {
+        line = std::move(currLine);
+      } else if (i != lineNo && i == other) {
+        otherLine = std::move(currLine);
+      }
+    }
+  }
+
+  return {line, otherLine};
 }
 
 auto to_string(const ClangError &e) -> std::string { return e.to_string(); }

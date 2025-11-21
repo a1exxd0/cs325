@@ -23,7 +23,7 @@ inline auto tokenize(FILE *pFile, int &lastChar, int &nextChar, int &lineNo,
   while (isspace(lastChar)) {
     if (lastChar == '\n' || lastChar == '\r') {
       lineNo++;
-      columnNo = 1;
+      columnNo = 0;
     }
     lastChar = getc(pFile);
     columnNo++;
@@ -283,7 +283,7 @@ inline auto tokenize(FILE *pFile, int &lastChar, int &nextChar, int &lineNo,
 namespace mccomp {
 
 Lexer::Lexer(const std::string &programName, const char *fileName)
-    : globalLexeme(), lineNo(0), columnNo(0) {
+    : globalLexeme(), lineNo(0), columnNo(0), fileName(fileName) {
   auto file = std::fopen(fileName, "r");
   if (file == nullptr) {
     fmt::println(

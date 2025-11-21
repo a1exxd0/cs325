@@ -55,8 +55,7 @@ else_stmt  ::= "else" block
 return_stmt ::= "return" ";"
         |  "return" expr ";"
 lvalue ::= IDENT [dimensions]
-expr ::= lvalue "=" expr
-        | or_expr 
+expr ::= or_expr ("=" or_expr)* 
 or_expr ::= and_expr ("||" and_expr)*
 and_expr ::= eq_expr ("&&" eq_expr)*
 eq_expr ::= rel_expr (("==" | "!=") rel_expr)*

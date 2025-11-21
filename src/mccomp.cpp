@@ -1,4 +1,6 @@
+#include "ast/_internal/ctx.h"
 #include "error/error.h"
+#include "parser/_internal/util.h"
 #include "llvm/ADT/APFloat.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/IR/BasicBlock.h"
@@ -35,6 +37,7 @@
 #include <utility>
 #include <vector>
 
+#include <fmt/format.h>
 #include <lexer/lexer.h>
 #include <parser/parser.h>
 #include <tokens/tokens.h>
@@ -98,11 +101,13 @@ int main(int argc, char **argv) {
   TheModule = std::make_unique<Module>("mini-c", TheContext);
 
   // Run the parser now.
-
-  /* UNCOMMENT : Task 2 - Parser
-   * parser();
-   * fprintf(stderr, "Parsing Finished\n");
-   */
+  auto lexer_ast = mccomp::Lexer(programName, argv[1]);
+  auto astContext = mccomp::ASTContext();
+  auto ast = parser.parseProgram(lexer_ast, astContext);
+  if (!ast) {
+    fmt::println("{}", ast.error().to_string());
+  }
+  fprintf(stderr, "Parsing Finished\n");
 
   printf(
       "********************* FINAL IR (begin) ****************************\n");
@@ -120,13 +125,6 @@ int main(int argc, char **argv) {
   TheModule->print(dest, nullptr);
   printf(
       "********************* FINAL IR (end) ******************************\n");
-
-  auto demoError =
-      mccomp::ClangError(mccomp::ClangErrorSeverity::ERROR,
-                         "custom_tests/string_to_int_assignment.c", 1, 18,
-                         {22, 28}, "failed to convert integer lexeme to int");
-
-  std::cout << demoError.to_string() << std::endl;
 
   return 0;
 }

@@ -8,8 +8,8 @@ auto Token::buildToken(TokenType tokenType, std::string_view fileName,
                        std::string &&lexeme) -> Token {
   Token token;
   token.tokenType = tokenType;
-  token.lineNo = lineNo;
-  token.columnNo = columnNo;
+  token.lineNo = lineNo + 1;
+  token.columnNo = columnNo - lexeme.size();
   token.lexeme = std::move(lexeme);
 
   switch (tokenType) {
