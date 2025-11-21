@@ -27,11 +27,24 @@ public:
 
   SourceLocation() = delete;
   SourceLocation(std::size_t lineNo, std::size_t columnNo,
-                 std::size_t endColumnNo);
+                 std::size_t endColumnNo)
+      : lineNo(lineNo), startColumnNo(columnNo), endColumnNo(endColumnNo) {}
   SourceLocation(std::size_t lineNo, std::size_t columnNo,
-                 std::size_t endColumnNo, std::string fileName);
+                 std::size_t endColumnNo, std::string fileName)
+      : fileName(std::move(fileName)), lineNo(lineNo), startColumnNo(columnNo),
+        endColumnNo(endColumnNo) {}
+  SourceLocation(View view)
+      : fileName(view.fileName), lineNo(view.lineNo),
+        startColumnNo(view.startColumnNo), endColumnNo(view.endColumnNo) {}
 
-  auto getView() const -> SourceLocation::View;
+  auto getView() const -> SourceLocation::View {
+    return View{
+        fileName,
+        lineNo,
+        startColumnNo,
+        endColumnNo,
+    };
+  }
 };
 
 /// ASTnode - Base class for all AST nodes.
@@ -71,7 +84,8 @@ public:
 protected:
   NodeKind nodeKind;
   SourceLocation sourceLocation;
-  explicit ASTNode(NodeKind nodeKind, SourceLocation sourceLocation);
+  explicit ASTNode(NodeKind nodeKind, SourceLocation sourceLocation)
+      : nodeKind(nodeKind), sourceLocation(std::move(sourceLocation)) {}
 
 public:
   ASTNode(const ASTNode &) = delete;
@@ -80,8 +94,10 @@ public:
   ASTNode &operator=(ASTNode &&) = default;
   virtual ~ASTNode() {}
 
-  auto getKind() const -> NodeKind;
-  auto getLocation() const -> SourceLocation::View;
+  auto getKind() const -> NodeKind { return nodeKind; }
+  auto getLocation() const -> SourceLocation::View {
+    return sourceLocation.getView();
+  }
 
   virtual auto accept(ASTVisitor &visitor) -> void = 0;
   virtual auto accept(ConstASTVisitor &visitor) const -> void = 0;

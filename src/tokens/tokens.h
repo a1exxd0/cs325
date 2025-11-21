@@ -2,6 +2,7 @@
 
 #include <cassert>
 #include <error/error.h>
+#include <fmt/format.h>
 #include <llvm/ADT/StringExtras.h>
 #include <string>
 #include <string_view>
@@ -119,6 +120,20 @@ public:
   auto getLineNo() const noexcept -> int;
   auto getColumnNo() const noexcept -> int;
   auto getTokenType() const noexcept -> TokenType;
+
+  template <typename T> auto in(T &&container) const noexcept -> bool {
+    return std::find(std::begin(container), std::end(container),
+                     this->tokenType) != std::end(container);
+  }
+
+  friend auto operator<<(std::ostream &, const Token &) -> std::ostream &;
 };
+
+inline auto operator<<(std::ostream &os, const Token &token) -> std::ostream & {
+  auto str =
+      fmt::format("{} :: {}:{}", token.lexeme, token.lineNo, token.columnNo);
+
+  return os << str;
+}
 
 }; // namespace mccomp

@@ -1,11 +1,14 @@
 #pragma once
 
+#include "error/error.h"
 #include "tokens/tokens.h"
 #include <ast/_internal/ast_node.h>
 #include <ast/_internal/type.h>
 #include <ast/_internal/visitor.h>
 
 namespace mccomp {
+
+class Type;
 
 class Expr : public ASTNode {
   Type *type;
@@ -17,21 +20,54 @@ public:
   auto setType(Type *type) -> void { this->type = type; }
 };
 
-class CallExpr final : public Expr {
-  ASTNode *callee;
-  std::vector<ASTNode *> args;
+class DeclRefExpr : public Expr {
+  std::string name;
+  std::optional<ASTNode *> reference;
 
 public:
-  CallExpr(ASTNode *callee, std::vector<ASTNode *> args, SourceLocation loc)
+  DeclRefExpr(std::string name, SourceLocation loc)
+      : Expr(NK_DeclRefExpr, std::move(loc)), name(std::move(name)),
+        reference() {}
+
+  auto getName() -> std::string & { return this->name; }
+  auto getName() const -> std::string_view { return this->name; }
+
+  auto getReference() -> std::optional<ASTNode *> { return this->reference; }
+  auto getReference() const -> std::optional<const ASTNode *> {
+    return this->reference;
+  }
+  auto setReference(ASTNode *node) -> void { this->reference = node; }
+
+  auto accept(ASTVisitor &visitor) -> void override {
+    visitor.visitDeclRefExpr(*this);
+  }
+
+  auto accept(ConstASTVisitor &visitor) const -> void override {
+    visitor.visitDeclRefExpr(*this);
+  }
+
+  auto getChildren() -> std::vector<ASTNode *> override { return {}; }
+
+  auto getChildren() const -> std::vector<const ASTNode *> override {
+    return {};
+  }
+};
+
+class CallExpr final : public Expr {
+  DeclRefExpr *callee;
+  std::vector<Expr *> args;
+
+public:
+  CallExpr(DeclRefExpr *callee, std::vector<Expr *> args, SourceLocation loc)
       : Expr(NK_CallExpr, std::move(loc)), callee(callee),
         args(std::move(args)) {}
 
-  auto getCallee() -> ASTNode * { return callee; }
-  auto getCallee() const -> const ASTNode * { return callee; }
+  auto getCallee() -> DeclRefExpr * { return callee; }
+  auto getCallee() const -> const DeclRefExpr * { return callee; }
 
-  auto getArgs() -> std::vector<ASTNode *> & { return args; }
-  auto getArgs() const -> std::vector<const ASTNode *> {
-    auto vec = std::vector<const ASTNode *>(args.begin(), args.end());
+  auto getArgs() -> std::vector<Expr *> & { return args; }
+  auto getArgs() const -> std::vector<const Expr *> {
+    auto vec = std::vector<const Expr *>(args.begin(), args.end());
     return vec;
   }
 
@@ -82,39 +118,6 @@ public:
 
   auto getChildren() const -> std::vector<const ASTNode *> override {
     return {inner};
-  }
-};
-
-class DeclRefExpr : public Expr {
-  std::string name;
-  std::optional<ASTNode *> reference;
-
-public:
-  DeclRefExpr(std::string name, SourceLocation loc)
-      : Expr(NK_DeclRefExpr, std::move(loc)), name(std::move(name)),
-        reference() {}
-
-  auto getName() -> std::string & { return this->name; }
-  auto getName() const -> std::string_view { return this->name; }
-
-  auto getReference() -> std::optional<ASTNode *> { return this->reference; }
-  auto getReference() const -> std::optional<const ASTNode *> {
-    return this->reference;
-  }
-  auto setReference(ASTNode *node) -> void { this->reference = node; }
-
-  auto accept(ASTVisitor &visitor) -> void override {
-    visitor.visitDeclRefExpr(*this);
-  }
-
-  auto accept(ConstASTVisitor &visitor) const -> void override {
-    visitor.visitDeclRefExpr(*this);
-  }
-
-  auto getChildren() -> std::vector<ASTNode *> override { return {}; }
-
-  auto getChildren() const -> std::vector<const ASTNode *> override {
-    return {};
   }
 };
 
@@ -201,10 +204,52 @@ private:
   ASTNode *rhs;
 
 public:
-  BinaryOperator(Token opToken, Operator op, ASTNode *lhs, ASTNode *rhs,
-                 SourceLocation loc)
+  BinaryOperator(Token opToken, ASTNode *lhs, ASTNode *rhs, SourceLocation loc)
       : Expr(NK_BinaryOperator, std::move(loc)), opToken(std::move(opToken)),
-        op(op), lhs(lhs), rhs(rhs) {}
+        lhs(lhs), rhs(rhs) {
+    auto op = [](const Token &tok) -> Operator {
+      switch (tok.getTokenType()) {
+      case TokenType::ASSIGN:
+        return OP_ASSIGN;
+      case TokenType::OR:
+        return OP_OR;
+      case TokenType::AND:
+        return OP_AND;
+      case TokenType::EQ:
+        return OP_EQ;
+      case TokenType::NE:
+        return OP_NEQ;
+      case TokenType::LE:
+        return OP_LEQ;
+      case TokenType::LT:
+        return OP_LT;
+      case TokenType::GE:
+        return OP_GEQ;
+      case TokenType::GT:
+        return OP_GT;
+      case TokenType::PLUS:
+        return OP_ADD;
+      case TokenType::MINUS:
+        return OP_SUB;
+      case TokenType::ASTERIX:
+        return OP_MUL;
+      case TokenType::DIV:
+        return OP_DIV;
+      case TokenType::MOD:
+        return OP_MOD;
+      default:
+        auto error = ClangError(
+            ClangErrorSeverity::ERROR,
+            fmt::format("failed to convert token type to binary operator with "
+                        "token {}. Something went wrong in parsing.",
+                        tok.getLexeme()));
+        fmt::println(stderr, "{}", error.to_string());
+        exit(2);
+      }
+    }(opToken);
+
+    this->op = op;
+  }
 
   auto getOpToken() const -> const Token & { return opToken; }
 
@@ -244,9 +289,28 @@ private:
   ASTNode *expr;
 
 public:
-  UnaryOperator(Token opToken, Operator op, ASTNode *expr, SourceLocation loc)
+  UnaryOperator(Token opToken, ASTNode *expr, SourceLocation loc)
       : Expr(NK_UnaryOperator, std::move(loc)), opToken(std::move(opToken)),
-        op(op), expr(expr) {}
+        expr(expr) {
+    auto op = [](const Token &tok) -> Operator {
+      switch (tok.getTokenType()) {
+      case TokenType::MINUS:
+        return OP_NEG;
+      case TokenType::NOT:
+        return OP_NOT;
+      default:
+        auto error = ClangError(
+            ClangErrorSeverity::ERROR,
+            fmt::format("failed to convert token type to binary operator with "
+                        "token {}. Something went wrong in parsing.",
+                        tok.getLexeme()));
+        fmt::println(stderr, "{}", error.to_string());
+        exit(2);
+      }
+    }(opToken);
+
+    this->op = op;
+  }
 
   auto getOpToken() const -> const Token & { return opToken; }
 

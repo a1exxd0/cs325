@@ -1,8 +1,9 @@
 #include "ast/_internal/ctx.h"
-#include "ast/_internal/translation_unit.h"
+#include "error/error.h"
 #include <ast/ast.h>
 #include <deque>
 #include <lexer/lexer.h>
+#include <parser/_internal/util.h>
 #include <tl/expected.hpp>
 #include <tokens/tokens.h>
 #include <vector>
@@ -15,6 +16,7 @@ class Parser {
   /// from the lexer and updates CurTok with its results.
   std::optional<Token> currentToken;
   std::deque<Token> tokenBuffer;
+  std::optional<Token> lastTokenConsumed;
 
 public:
   // Advance the state of the parser w.r.t. the lexer
@@ -24,6 +26,7 @@ public:
 
     auto temp = tokenBuffer.front();
     tokenBuffer.pop_front();
+    lastTokenConsumed = currentToken;
     currentToken = temp;
 
     return temp;
@@ -46,7 +49,7 @@ public:
 
   // program ::= [extern_list] decl_list
   auto parseProgram(Lexer &lexer, ASTContext &ctx)
-      -> tl::expected<TranslationUnit, ClangError>;
+      -> tl::expected<TranslationUnit *, ClangError>;
 
   // Technically in C you can have extern variables, but
   // the grammar states only functions so we'll go with that.
@@ -58,7 +61,8 @@ public:
   auto parseExternList(Lexer &lexer, ASTContext &ctx)
       -> tl::expected<std::vector<FunctionDecl *>, ClangError>;
 
-  auto parseExtern(Lexer &lexer, ASTContext ctx)
+  // extern ::= "extern" type_spec IDENT "(" params ")" ";"
+  auto parseExtern(Lexer &lexer, ASTContext &ctx)
       -> tl::expected<FunctionDecl *, ClangError>;
 
   // Purposefully including a typed discrimination to be explicit
@@ -66,33 +70,38 @@ public:
   //
   // decl_list ::= decl+
   auto parseDeclList(Lexer &lexer, ASTContext &ctx)
-      -> tl::expected<std::vector<std::variant<FunctionDecl *, VarDecl *>>,
-                      ClangError>;
+      -> tl::expected<std::vector<Decl *>, ClangError>;
 
   // decl ::= var_decl | fun_decl
   auto parseDecl(Lexer &lexer, ASTContext &ctx)
-      -> tl::expected<std::variant<FunctionDecl *, VarDecl *>, ClangError>;
+      -> tl::expected<Decl *, ClangError>;
 
   // var_decl ::= num_type IDENT [dimensions] ";"
   //         | "bool" IDENT ";"
   auto parseVarDecl(Lexer &lexer, ASTContext &ctx)
       -> tl::expected<VarDecl *, ClangError>;
 
+  // Returns the token in tl::unexpected if we dont get
+  // what we expect.
+  //
   // type_spec ::= "void" | "bool" | num_type
   auto parseTypeSpec(Lexer &lexer, ASTContext &ctx)
-      -> tl::expected<Token, ClangError>;
+      -> tl::expected<std::pair<Token, Type *>, Token>;
 
   // num_type ::= "int" | "float"
   auto parseNumType(Lexer &lexer, ASTContext &ctx)
-      -> tl::expected<Token, ClangError>;
+      -> tl::expected<std::pair<Token, Type *>, Token>;
 
   // dimensions ::= "[" expr "]" ["[" expr "]" ["[" expr "]"]]
+  template <bool IsDecl>
   auto parseDimensions(Lexer &lexer, ASTContext &ctx)
-      -> tl::expected<std::vector<std::size_t>, ClangError>;
+      -> tl::expected<std::vector<Expr *>, ClangError> {
+    return parseOptDimensions<false, IsDecl>(lexer, ctx);
+  }
 
   // param_dimensions ::= "[" [expr] "]" ["[" expr "]" ["[" expr "]"]]
   auto parseParamDimensions(Lexer &lexer, ASTContext &ctx)
-      -> tl::expected<std::vector<std::size_t>, ClangError>;
+      -> tl::expected<std::vector<Expr *>, ClangError>;
 
   // fun_decl ::= type_spec IDENT "(" params ")" block
   auto parseFunDecl(Lexer &lexer, ASTContext &ctx)
@@ -124,11 +133,11 @@ public:
 
   // stmt_list ::= stmt+
   auto parseStmtList(Lexer &lexer, ASTContext &ctx)
-      -> tl::expected<std::vector<Stmt *>, ClangError>;
+      -> tl::expected<std::vector<ASTNode *>, ClangError>;
 
   // stmt ::= expr_stmt | block | if_stmt | while_stmt | return_stmt
   auto parseStmt(Lexer &lexer, ASTContext &ctx)
-      -> tl::expected<Stmt *, ClangError>;
+      -> tl::expected<ASTNode *, ClangError>;
 
   // This could possibly be straight semicolons, will return a null pointer
   // with no issues.
@@ -207,6 +216,135 @@ public:
   // arg_list ::= expr ("," expr)*
   auto parseArgList(Lexer &lexer, ASTContext &ctx)
       -> tl::expected<std::vector<Expr *>, ClangError>;
+
+private:
+  // templated error returns, must specify context of parse.
+  //
+  // IsDecl only matters if OptionalFirstExpr is false.
+  template <bool OptionalFirstExpr, bool IsDecl>
+  auto parseOptDimensions(Lexer &lexer, ASTContext &ctx)
+      -> tl::expected<std::vector<Expr *>, ClangError>;
+
+  static auto buildBraceError(std::string_view fileName, const Token &lbr,
+                              const Token &rbr, char l, char r) -> ClangError {
+    auto error =
+        ClangError(ClangErrorSeverity::ERROR, fileName, rbr.getLineNo(),
+                   rbr.getColumnNo() + rbr.getLexeme().length(),
+                   fmt::format("expected \'{}\'", r));
+
+    auto note =
+        ClangError(ClangErrorSeverity::NOTE, fileName, lbr.getLineNo(),
+                   lbr.getColumnNo(), fmt::format("to match this \'{}\'", l));
+    error.attached.push_back(std::move(note));
+
+    return error;
+  }
+
+  // wow this is gross!
+  template <typename C, typename F>
+  static auto buildBinaryExprVectors(Parser &parser, Lexer &lexer,
+                                     ASTContext &ctx, const C &validTokens,
+                                     F func)
+      -> tl::expected<std::pair<std::vector<Expr *>, std::vector<Token>>,
+                      ClangError> {
+    static_assert(
+        std::is_invocable_r_v<tl::expected<Expr *, ClangError>, F, Parser &,
+                              Lexer &, ASTContext &>,
+        "Template parameter F must be callable with (Parser &, Lexer &, "
+        "ASTContext &) -> tl::expected<Expr*, ClangError>");
+
+    auto firstExpr = func(parser, lexer, ctx);
+    if (!firstExpr) {
+      return tl::unexpected(firstExpr.error());
+    }
+
+    auto exprs = std::vector<Expr *>{firstExpr.value()};
+    auto toks = std::vector<Token>();
+    auto lookahead = parser.peekNextToken(lexer);
+    while (lookahead.in(validTokens)) {
+      auto assign = parser.getNextToken(lexer);
+      toks.push_back(std::move(assign));
+      auto nextExpr = func(parser, lexer, ctx);
+      if (!nextExpr) {
+        return tl::unexpected(nextExpr.error());
+      }
+
+      exprs.push_back(nextExpr.value());
+      lookahead = parser.peekNextToken(lexer);
+    }
+
+    return std::make_pair(exprs, toks);
+  }
 };
+
+template <bool OptionalFirstExpr, bool IsDecl = true>
+auto Parser::parseOptDimensions(Lexer &lexer, ASTContext &ctx)
+    -> tl::expected<std::vector<Expr *>, ClangError> {
+  auto exprs = std::vector<Expr *>();
+  auto lbox = this->getNextToken(lexer);
+  if (lbox.getTokenType() != TokenType::LBOX) {
+    tl::unexpected(ClangError(
+        ClangErrorSeverity::ERROR, lexer.getFileName(), lbox.getLineNo(),
+        lbox.getColumnNo(),
+        "unexpected entry into parse opt dimensions, check lookahead"));
+  }
+
+  auto nextToken = this->peekNextToken(lexer);
+  if (nextToken.getTokenType() != TokenType::RBOX) {
+    auto expr = parseExpr(lexer, ctx);
+    if (!expr) {
+      return tl::unexpected(expr.error());
+    }
+
+    exprs.push_back(expr.value());
+  } else if (!OptionalFirstExpr && IsDecl) {
+    return tl::unexpected(ClangError(
+        ClangErrorSeverity::ERROR, lexer.getFileName(),
+        this->lastTokenConsumed->getLineNo(),
+        this->lastTokenConsumed->getColumnNo(),
+        "definition of variable with array type needs an explicit size"));
+  } else if (!OptionalFirstExpr && !IsDecl) {
+    return tl::unexpected(ClangError(
+        ClangErrorSeverity::ERROR, lexer.getFileName(), nextToken.getLineNo(),
+        nextToken.getColumnNo(), "expected expression"));
+  } else {
+    // optional, use nullptr
+    exprs.push_back(nullptr);
+  }
+
+  auto rbox = this->getNextToken(lexer);
+  if (rbox.getTokenType() != TokenType::RBOX) {
+    return tl::unexpected(this->buildBraceError(
+        lexer.getFileName(), lbox, lastTokenConsumed.value(), '[', ']'));
+  }
+
+  lbox = this->peekNextToken(lexer);
+  while (lbox.getTokenType() == TokenType::LBOX) {
+    this->getNextToken(lexer);
+    auto expr = parseExpr(lexer, ctx);
+    if (!expr) {
+      return tl::unexpected(expr.error());
+    }
+    exprs.push_back(expr.value());
+
+    rbox = this->getNextToken(lexer);
+    if (rbox.getTokenType() != TokenType::RBOX) {
+      return tl::unexpected(buildBraceError(
+          lexer.getFileName(), lbox, lastTokenConsumed.value(), '[', ']'));
+    }
+
+    lbox = this->peekNextToken(lexer);
+  }
+
+  if (exprs.size() > 3) {
+    return tl::unexpected(ClangError(ClangErrorSeverity::ERROR,
+                                     lexer.getFileName(), lbox.getLineNo(),
+                                     lbox.getColumnNo(),
+                                     "CS325 grammar does not allow for arrays "
+                                     "of greater than 3 dimensions"));
+  }
+
+  return exprs;
+}
 
 } // namespace mccomp

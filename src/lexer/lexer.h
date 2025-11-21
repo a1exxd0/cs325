@@ -25,6 +25,8 @@ public:
 
   // Peek forwards n tokens (default 1), minimum 1.
   auto peekToken(std::size_t n) const -> Token;
+
+  auto getFileName() const -> std::string_view { return fileName; }
 };
 
 }; // namespace mccomp
