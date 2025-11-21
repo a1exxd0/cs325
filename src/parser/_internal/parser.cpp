@@ -174,6 +174,7 @@ auto Parser::parseDeclList(Lexer &lexer, ASTContext &ctx)
     }
 
     decls.push_back(decl.value());
+    currToken = this->peekNextToken(lexer);
   }
 
   return decls;
@@ -193,10 +194,7 @@ auto Parser::parseDecl(Lexer &lexer, ASTContext &ctx)
              firstToken.getTokenType() != TokenType::BOOL_TOK &&
              firstToken.getTokenType() != TokenType::INT_TOK &&
              firstToken.getTokenType() != TokenType::FLOAT_TOK) {
-    if (this->getNextToken(lexer).getTokenType() != TokenType::EOF_TOK) {
-      this->getNextToken(lexer);
-    }
-
+    this->getNextToken(lexer);
     return tl::unexpected(ClangError(
         ClangErrorSeverity::ERROR, lexer.getFileName(),
         lastTokenConsumed->getLineNo(), lastTokenConsumed->getColumnNo(),
@@ -790,6 +788,7 @@ auto Parser::parseExprStmt(Lexer &lexer, ASTContext &ctx)
 
     auto sc = this->getNextToken(lexer);
     if (sc.getTokenType() != TokenType::SC) {
+      std::cout << sc << std::endl;
       this->getNextToken(lexer);
       return tl::unexpected(
           ClangError(ClangErrorSeverity::ERROR, lexer.getFileName(),
