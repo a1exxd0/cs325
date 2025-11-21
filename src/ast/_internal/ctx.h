@@ -1,5 +1,6 @@
 #pragma once
 
+#include <ast/_internal/expr_node.h>
 #include <ast/_internal/type.h>
 #include <llvm/Support/Allocator.h>
 
@@ -11,6 +12,7 @@ public:
     intType = this->create<BuiltinType>(Type::TK_INT);
     floatType = this->create<BuiltinType>(Type::TK_FLOAT);
     boolType = this->create<BuiltinType>(Type::TK_BOOL);
+    voidType = this->create<BuiltinType>(Type::TK_VOID);
   }
 
   template <typename T, typename... Args> auto create(Args &&...args) -> T * {
@@ -27,8 +29,9 @@ public:
   auto getIntType() const -> Type * { return intType; }
   auto getFloatType() const -> Type * { return floatType; }
   auto getBoolType() const -> Type * { return boolType; }
+  auto getVoidType() const -> Type * { return voidType; }
 
-  auto getArrayType(Type *elementType, const std::vector<std::size_t> &dims)
+  auto getArrayType(Type *elementType, const std::vector<Expr *> &dims)
       -> Type * {
     assert(elementType);
     assert(!dims.empty() && dims.size() <= 3);
@@ -46,13 +49,27 @@ public:
     return arr;
   }
 
+  auto getPtrType(Type *elementType) -> Type * {
+    assert(elementType);
+    auto it = ptrCache.find(elementType);
+    if (it != ptrCache.end()) {
+      return it->second;
+    }
+
+    auto ptr = create<PointerType>(elementType);
+    ptrCache.emplace(elementType, ptr);
+    return ptr;
+  }
+
 private:
   llvm::BumpPtrAllocator Alloc;
 
   BuiltinType *intType = nullptr;
   BuiltinType *floatType = nullptr;
+  BuiltinType *voidType = nullptr;
   BuiltinType *boolType = nullptr;
 
   std::unordered_map<ArrayType, ArrayType *, ArrayTypeHash> arrayCache;
+  std::unordered_map<Type *, PointerType *> ptrCache;
 };
 } // namespace mccomp
