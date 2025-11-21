@@ -9,10 +9,13 @@ namespace mccomp {
 class Decl : public ASTNode {
   Type *type;
   std::string name;
+  Token ident;
 
 public:
-  Decl(NodeKind kind, std::string name, Type *type, SourceLocation loc)
-      : ASTNode(kind, std::move(loc)), type(type), name(std::move(name)) {}
+  Decl(NodeKind kind, Token ident, Type *type, SourceLocation loc)
+      : ASTNode(kind, std::move(loc)), type(type), ident(std::move(ident)) {
+    this->name = this->ident.asIdent();
+  }
 
   auto getType() -> Type * { return type; }
   auto getType() const -> const Type * { return type; }
@@ -20,12 +23,15 @@ public:
 
   auto getName() -> std::string & { return name; }
   auto getName() const -> std::string_view { return name; }
+
+  auto getIdent() -> Token & { return ident; }
+  auto getIdent() const -> const Token & { return ident; }
 };
 
 class ParmVarDecl final : public Decl {
 public:
-  ParmVarDecl(std::string name, Type *type, SourceLocation loc)
-      : Decl(NK_ParmVarDecl, std::move(name), type, std::move(loc)) {}
+  ParmVarDecl(Token ident, Type *type, SourceLocation loc)
+      : Decl(NK_ParmVarDecl, std::move(ident), type, std::move(loc)) {}
 
   auto accept(ASTVisitor &visitor) -> void override {
     visitor.visitParmVarDecl(*this);
@@ -46,8 +52,8 @@ class VarDecl final : public Decl {
   ASTNode *init; // nullable
 
 public:
-  VarDecl(std::string name, Type *type, ASTNode *init, SourceLocation loc)
-      : Decl(NK_VarDecl, std::move(name), type, std::move(loc)), init(init) {}
+  VarDecl(Token ident, Type *type, ASTNode *init, SourceLocation loc)
+      : Decl(NK_VarDecl, std::move(ident), type, std::move(loc)), init(init) {}
 
   auto getInit() -> ASTNode * { return init; }
   auto getInit() const -> const ASTNode * { return init; }
@@ -75,9 +81,9 @@ class FunctionDecl final : public Decl {
   ASTNode *body; // nullable for extern
 
 public:
-  FunctionDecl(std::string name, Type *type, std::vector<ParmVarDecl *> params,
+  FunctionDecl(Token ident, Type *type, std::vector<ParmVarDecl *> params,
                ASTNode *body, SourceLocation loc)
-      : Decl(NK_FunctionDecl, std::move(name), type, std::move(loc)),
+      : Decl(NK_FunctionDecl, std::move(ident), type, std::move(loc)),
         params(std::move(params)), body(body) {}
 
   auto getParams() -> std::vector<ParmVarDecl *> & { return params; }

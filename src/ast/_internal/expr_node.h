@@ -22,12 +22,15 @@ public:
 
 class DeclRefExpr : public Expr {
   std::string name;
+  Token ident;
   std::optional<ASTNode *> reference;
 
 public:
-  DeclRefExpr(std::string name, SourceLocation loc)
-      : Expr(NK_DeclRefExpr, std::move(loc)), name(std::move(name)),
-        reference() {}
+  DeclRefExpr(Token ident, SourceLocation loc)
+      : Expr(NK_DeclRefExpr, std::move(loc)), ident(std::move(ident)),
+        reference() {
+    this->name = this->ident.getLexeme();
+  }
 
   auto getName() -> std::string & { return this->name; }
   auto getName() const -> std::string_view { return this->name; }

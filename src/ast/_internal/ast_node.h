@@ -29,6 +29,19 @@ public:
                  std::string_view fileName)
       : startLineNo(startLineNo), startColumnNo(startColumnNo),
         endLineNo(endLineNo), endColumnNo(endColumnNo), fileName(fileName) {}
+  SourceLocation(const Token &token, std::string_view fileName)
+      : startLineNo(token.getLineNo()), startColumnNo(token.getColumnNo()),
+        endLineNo(token.getLineNo()),
+        endColumnNo(token.getColumnNo() + token.getLexeme().size() - 1),
+        fileName(fileName) {}
+  SourceLocation(const Token &leftToken, const Token &rightToken,
+                 std::string_view fileName)
+      : startLineNo(leftToken.getLineNo()),
+        startColumnNo(leftToken.getColumnNo()),
+        endLineNo(rightToken.getLineNo()),
+        endColumnNo(rightToken.getColumnNo() + rightToken.getLexeme().size() -
+                    1),
+        fileName(fileName) {}
 };
 
 /// ASTnode - Base class for all AST nodes.
