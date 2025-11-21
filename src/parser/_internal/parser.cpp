@@ -4,8 +4,6 @@
 #include "parser/_internal/util.h"
 #include <ast/ast.h>
 #include <fmt/format.h>
-#include <iostream>
-#include <iterator>
 #include <parser/parser.h>
 #include <tl/expected.hpp>
 #include <tokens/tokens.h>
@@ -44,11 +42,12 @@ auto Parser::parseProgram(Lexer &lexer, ASTContext &ctx)
   auto start = (externList.size()) ? externList[0]->getLocation()
                                    : declList[0]->getLocation();
 
-  // kind of nonsensical highlighting, only start positions are real here.
   return util::allocateNode<TranslationUnit>(
       ctx, std::move(externList), std::move(declList),
-      SourceLocation(start.lineNo, start.startColumnNo, start.endColumnNo,
-                     std::string(lexer.getFileName())));
+      SourceLocation(start.startLineNo, start.startColumnNo,
+                     declList.back()->getLocation().endLineNo,
+                     declList.back()->getLocation().endColumnNo,
+                     lexer.getFileName()));
 }
 
 // Technically in C you can have extern variables, but
