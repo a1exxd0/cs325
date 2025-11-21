@@ -12,39 +12,36 @@ class ASTVisitor;
 class ConstASTVisitor;
 
 class SourceLocation {
-  std::optional<std::string> fileName;
-  std::size_t lineNo;
-  std::size_t startColumnNo;
-  std::size_t endColumnNo;
-
 public:
-  struct View {
-    std::optional<std::string_view> fileName;
-    std::size_t lineNo;
-    std::size_t startColumnNo;
-    std::size_t endColumnNo;
-  };
+  std::size_t startLineNo;
+  std::size_t startColumnNo;
+  std::size_t endLineNo;
+  std::size_t endColumnNo;
+  std::optional<std::string_view> fileName;
 
   SourceLocation() = delete;
-  SourceLocation(std::size_t lineNo, std::size_t columnNo,
-                 std::size_t endColumnNo)
-      : lineNo(lineNo), startColumnNo(columnNo), endColumnNo(endColumnNo) {}
-  SourceLocation(std::size_t lineNo, std::size_t columnNo,
-                 std::size_t endColumnNo, std::string fileName)
-      : fileName(std::move(fileName)), lineNo(lineNo), startColumnNo(columnNo),
-        endColumnNo(endColumnNo) {}
-  SourceLocation(View view)
-      : fileName(view.fileName), lineNo(view.lineNo),
-        startColumnNo(view.startColumnNo), endColumnNo(view.endColumnNo) {}
-
-  auto getView() const -> SourceLocation::View {
-    return View{
-        fileName,
-        lineNo,
-        startColumnNo,
-        endColumnNo,
-    };
-  }
+  SourceLocation(std::size_t startLineNo, std::size_t startColumnNo,
+                 std::size_t endLineNo, std::size_t endColumnNo)
+      : startLineNo(startLineNo), startColumnNo(startColumnNo),
+        endLineNo(endLineNo), endColumnNo(endColumnNo) {}
+  SourceLocation(std::size_t startLineNo, std::size_t startColumnNo,
+                 std::size_t endLineNo, std::size_t endColumnNo,
+                 std::string_view fileName)
+      : startLineNo(startLineNo), startColumnNo(startColumnNo),
+        endLineNo(endLineNo), endColumnNo(endColumnNo), fileName(fileName) {}
+  SourceLocation(const Token &token, std::string_view fileName)
+      : startLineNo(token.getLineNo()), startColumnNo(token.getColumnNo()),
+        endLineNo(token.getLineNo()),
+        endColumnNo(token.getColumnNo() + token.getLexeme().size() - 1),
+        fileName(fileName) {}
+  SourceLocation(const Token &leftToken, const Token &rightToken,
+                 std::string_view fileName)
+      : startLineNo(leftToken.getLineNo()),
+        startColumnNo(leftToken.getColumnNo()),
+        endLineNo(rightToken.getLineNo()),
+        endColumnNo(rightToken.getColumnNo() + rightToken.getLexeme().size() -
+                    1),
+        fileName(fileName) {}
 };
 
 /// ASTnode - Base class for all AST nodes.
@@ -95,9 +92,7 @@ public:
   virtual ~ASTNode() {}
 
   auto getKind() const -> NodeKind { return nodeKind; }
-  auto getLocation() const -> SourceLocation::View {
-    return sourceLocation.getView();
-  }
+  auto getLocation() const -> const SourceLocation & { return sourceLocation; }
 
   virtual auto accept(ASTVisitor &visitor) -> void = 0;
   virtual auto accept(ConstASTVisitor &visitor) const -> void = 0;
