@@ -76,6 +76,8 @@ enum class TokenType {
   SINGLE_PIPE = int('|'),
 };
 
+const char *to_string(TokenType t);
+
 // Token class is used to keep track of information about a token
 class Token {
   using TokenVariant = std::variant<std::monostate, int, double, bool>;

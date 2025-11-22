@@ -26,6 +26,9 @@ class DeclRefExpr : public Expr {
   std::optional<ASTNode *> reference;
 
 public:
+  // oops im cheating
+  friend class ASTPrinter;
+
   DeclRefExpr(Token ident, SourceLocation loc)
       : Expr(NK_DeclRefExpr, std::move(loc)), ident(std::move(ident)),
         reference() {

@@ -80,4 +80,103 @@ auto Token::getTokenType() const noexcept -> TokenType {
   return this->tokenType;
 }
 
+const char *to_string(TokenType t) {
+  switch (t) {
+  case TokenType::IDENT:
+    return "IDENT";
+  case TokenType::ASSIGN:
+    return "ASSIGN";
+  case TokenType::LBRA:
+    return "LBRA";
+  case TokenType::RBRA:
+    return "RBRA";
+  case TokenType::LPAR:
+    return "LPAR";
+  case TokenType::LBOX:
+    return "LBOX";
+  case TokenType::RBOX:
+    return "RBOX";
+  case TokenType::RPAR:
+    return "RPAR";
+  case TokenType::SC:
+    return "SC";
+  case TokenType::COMMA:
+    return "COMMA";
+
+  case TokenType::INT_TOK:
+    return "INT_TOK";
+  case TokenType::VOID_TOK:
+    return "VOID_TOK";
+  case TokenType::FLOAT_TOK:
+    return "FLOAT_TOK";
+  case TokenType::BOOL_TOK:
+    return "BOOL_TOK";
+
+  case TokenType::EXTERN:
+    return "EXTERN";
+  case TokenType::IF:
+    return "IF";
+  case TokenType::ELSE:
+    return "ELSE";
+  case TokenType::WHILE:
+    return "WHILE";
+  case TokenType::RETURN:
+    return "RETURN";
+  case TokenType::TRUE:
+    return "TRUE";
+  case TokenType::FALSE:
+    return "FALSE";
+
+  case TokenType::INT_LIT:
+    return "INT_LIT";
+  case TokenType::FLOAT_LIT:
+    return "FLOAT_LIT";
+  case TokenType::BOOL_LIT:
+    return "BOOL_LIT";
+
+  case TokenType::AND:
+    return "AND";
+  case TokenType::OR:
+    return "OR";
+
+  case TokenType::PLUS:
+    return "PLUS";
+  case TokenType::MINUS:
+    return "MINUS";
+  case TokenType::ASTERIX:
+    return "ASTERIX";
+  case TokenType::DIV:
+    return "DIV";
+  case TokenType::MOD:
+    return "MOD";
+  case TokenType::NOT:
+    return "NOT";
+
+  case TokenType::EQ:
+    return "EQ";
+  case TokenType::NE:
+    return "NE";
+  case TokenType::LE:
+    return "LE";
+  case TokenType::LT:
+    return "LT";
+  case TokenType::GE:
+    return "GE";
+  case TokenType::GT:
+    return "GT";
+
+  case TokenType::EOF_TOK:
+    return "EOF_TOK";
+  case TokenType::INVALID:
+    return "INVALID";
+  case TokenType::SINGLE_AMPERSAND:
+    return "SINGLE_AMPERSAND";
+  case TokenType::SINGLE_PIPE:
+    return "SINGLE_PIPE";
+
+  default:
+    return "UNKNOWN";
+  }
+}
+
 }; // namespace mccomp
