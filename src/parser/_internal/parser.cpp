@@ -863,7 +863,7 @@ auto Parser::parseWhileStmt(Lexer &lexer, ASTContext &ctx)
 auto Parser::parseIfStmt(Lexer &lexer, ASTContext &ctx)
     -> tl::expected<IfStmt *, ClangError> {
   auto ifTok = this->getNextToken(lexer);
-  if (ifTok.getTokenType() != TokenType::WHILE) {
+  if (!ifTok.in(util::FIRST_if_stmt)) {
     return util::badParseCase();
   }
 
@@ -1008,10 +1008,9 @@ auto Parser::parseLValue(Lexer &lexer, ASTContext &ctx)
     optDims = dims.value();
   }
 
-  auto identSource =
-      SourceLocation(ident.getLineNo(), ident.getColumnNo(), ident.getLineNo(),
-                     ident.getColumnNo() + ident.getLexeme().size(),
-                     std::string(lexer.getFileName()));
+  auto identSource = SourceLocation(
+      ident.getLineNo(), ident.getColumnNo(), ident.getLineNo(),
+      ident.getColumnNo() + ident.getLexeme().size(), lexer.getFileName());
   auto declRefExpr = util::allocateNode<DeclRefExpr>(ctx, ident, identSource);
   if (!declRefExpr)
     return tl::unexpected(declRefExpr.error());
@@ -1289,7 +1288,9 @@ auto Parser::parsePrimary(Lexer &lexer, ASTContext &ctx)
   } else if (firstToken.getTokenType() == TokenType::IDENT &&
              secondToken.getTokenType() == TokenType::LPAR) {
     auto ident = this->getNextToken(lexer);
+    assert(ident.getTokenType() == TokenType::IDENT);
     auto lpar = this->getNextToken(lexer);
+    assert(lpar.getTokenType() == TokenType::LPAR);
     auto args = parseArgs(lexer, ctx);
     if (!args) {
       return tl::unexpected(args.error());
@@ -1343,6 +1344,7 @@ auto Parser::parsePrimary(Lexer &lexer, ASTContext &ctx)
 auto Parser::parseArgs(Lexer &lexer, ASTContext &ctx)
     -> tl::expected<std::vector<Expr *>, ClangError> {
   auto lookahead = this->peekNextToken(lexer);
+  std::cout << "with lookahead " << lookahead << std::endl;
   if (lookahead.in(util::FOLLOW_args)) {
     return {};
   }
@@ -1378,7 +1380,7 @@ auto Parser::parseArgList(Lexer &lexer, ASTContext &ctx)
     return tl::unexpected(firstExpr.error());
   }
 
-  auto exprs = std::vector<Expr *>();
+  auto exprs = std::vector<Expr *>{firstExpr.value()};
   auto lookahead = this->peekNextToken(lexer);
   while (lookahead.in(validTokens)) {
     this->getNextToken(lexer);
