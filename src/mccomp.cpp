@@ -1,4 +1,5 @@
 #include "ast/_internal/ctx.h"
+#include "ast/printer.h"
 #include "error/error.h"
 #include "parser/_internal/util.h"
 #include "llvm/ADT/APFloat.h"
@@ -101,13 +102,17 @@ int main(int argc, char **argv) {
   TheModule = std::make_unique<Module>("mini-c", TheContext);
 
   // Run the parser now.
-  auto lexer_ast = mccomp::Lexer(programName, argv[1]);
+  auto lexerAst = mccomp::Lexer(programName, argv[1]);
   auto astContext = mccomp::ASTContext();
-  auto ast = parser.parseProgram(lexer_ast, astContext);
+  auto ast = parser.parseProgram(lexerAst, astContext);
+  fprintf(stderr, "Parsing Finished\n");
   if (!ast) {
     fmt::println("{}", ast.error().to_string());
+    return -2;
   }
-  fprintf(stderr, "Parsing Finished\n");
+
+  auto astPrinter = mccomp::ASTPrinter();
+  ast.value()->accept(astPrinter);
 
   printf(
       "********************* FINAL IR (begin) ****************************\n");
