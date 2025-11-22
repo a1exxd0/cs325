@@ -125,13 +125,13 @@ inline auto tokenize(FILE *pFile, int &lastChar, int &nextChar, int &lineNo,
   if (lastChar == '[') {
     lastChar = getc(pFile);
     columnNo++;
-    return returnToken(lineNo, columnNo, fileName, "(",
+    return returnToken(lineNo, columnNo, fileName, "[",
                        mccomp::TokenType::LBOX);
   }
   if (lastChar == ']') {
     lastChar = getc(pFile);
     columnNo++;
-    return returnToken(lineNo, columnNo, fileName, ")",
+    return returnToken(lineNo, columnNo, fileName, "]",
                        mccomp::TokenType::RBOX);
   }
   if (lastChar == ';') {
@@ -154,13 +154,13 @@ inline auto tokenize(FILE *pFile, int &lastChar, int &nextChar, int &lineNo,
   if (lastChar == '-') {
     lastChar = getc(pFile);
     columnNo++;
-    return returnToken(lineNo, columnNo, fileName, "+",
+    return returnToken(lineNo, columnNo, fileName, "-",
                        mccomp::TokenType::MINUS);
   }
   if (lastChar == '*') {
     lastChar = getc(pFile);
     columnNo++;
-    return returnToken(lineNo, columnNo, fileName, "+",
+    return returnToken(lineNo, columnNo, fileName, "*",
                        mccomp::TokenType::ASTERIX);
   }
   if (lastChar == '%') {
