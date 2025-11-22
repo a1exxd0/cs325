@@ -27,7 +27,8 @@ auto ASTPrinter::formatPrefix() const -> std::string {
       prefix[block] = '|';
   }
 
-  return prefix;
+  return fmt::format(FMT_COMPILE("{}{}{}"), text_colors::BLUE, prefix,
+                     text_colors::RESET);
 }
 
 auto ASTPrinter::formatRegion(const SourceLocation &sourceLocation) const
