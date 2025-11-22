@@ -5,7 +5,7 @@
 
 namespace mccomp {
 
-class ASTPrinter : public ConstASTVisitor {
+class ASTPrinter final : public ConstASTVisitor {
   std::string_view currFile;
   std::size_t currLine = 0;
   std::size_t currCol = 0;

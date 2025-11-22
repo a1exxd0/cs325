@@ -1046,11 +1046,15 @@ auto buildBinaryExprTree(std::vector<Expr *> arguments,
   assert(operators.size() + 1 == arguments.size());
 
   const auto n = static_cast<int>(operators.size());
-  auto root = arguments.back();
-  for (auto i = n - 1; i >= 0; i--) {
+  auto root = arguments.front();
+  for (auto i = 0; i < n; i++) {
     auto binaryExpr = util::allocateNode<BinaryOperator>(
-        ctx, operators[i], arguments[i], root,
-        SourceLocation(arguments[i]->getLocation()));
+        ctx, operators[i], root, arguments[i + 1],
+        SourceLocation(root->getLocation().startLineNo,
+                       root->getLocation().startColumnNo,
+                       arguments[i + 1]->getLocation().endLineNo,
+                       arguments[i + 1]->getLocation().endColumnNo,
+                       root->getLocation().fileName.value()));
     if (!binaryExpr) {
       return tl::unexpected(binaryExpr.error());
     }
