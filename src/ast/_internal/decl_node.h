@@ -1,5 +1,6 @@
 #pragma once
 
+#include "semantic/type_checker.h"
 #include <ast/_internal/ast_node.h>
 #include <ast/_internal/ctx.h>
 #include <ast/_internal/type.h>
@@ -95,6 +96,9 @@ public:
     auto functionType = ctx.getFunctionType(returnType, paramsAsTypes);
     this->functionType = dynamic_cast<FunctionType *>(functionType);
   }
+
+  auto getFunctionType() -> FunctionType * { return functionType; }
+  auto getFunctionType() const -> const FunctionType * { return functionType; }
 
   auto getParams() -> std::vector<ParmVarDecl *> & { return params; }
   auto getParams() const -> const std::vector<ParmVarDecl *> & {
