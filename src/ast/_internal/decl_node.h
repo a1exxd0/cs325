@@ -1,6 +1,7 @@
 #pragma once
 
 #include <ast/_internal/ast_node.h>
+#include <ast/_internal/ctx.h>
 #include <ast/_internal/type.h>
 #include <ast/_internal/visitor.h>
 
@@ -79,12 +80,21 @@ public:
 class FunctionDecl final : public Decl {
   std::vector<ParmVarDecl *> params;
   ASTNode *body; // nullable for extern
+  FunctionType *functionType;
 
 public:
-  FunctionDecl(Token ident, Type *type, std::vector<ParmVarDecl *> params,
-               ASTNode *body, SourceLocation loc)
-      : Decl(NK_FunctionDecl, std::move(ident), type, std::move(loc)),
-        params(std::move(params)), body(body) {}
+  FunctionDecl(Token ident, Type *returnType, std::vector<ParmVarDecl *> params,
+               ASTNode *body, ASTContext &ctx, SourceLocation loc)
+      : Decl(NK_FunctionDecl, std::move(ident), returnType, std::move(loc)),
+        params(std::move(params)), body(body) {
+    auto paramsAsTypes = std::vector<Type *>();
+    paramsAsTypes.reserve(params.size());
+    for (auto &param : params)
+      paramsAsTypes.push_back(param->getType());
+    auto key = FunctionType(returnType, paramsAsTypes);
+    auto functionType = ctx.getFunctionType(returnType, paramsAsTypes);
+    this->functionType = dynamic_cast<FunctionType *>(functionType);
+  }
 
   auto getParams() -> std::vector<ParmVarDecl *> & { return params; }
   auto getParams() const -> const std::vector<ParmVarDecl *> & {

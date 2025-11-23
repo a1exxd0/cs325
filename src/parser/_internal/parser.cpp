@@ -147,7 +147,7 @@ auto Parser::parseExtern(Lexer &lexer, ASTContext &ctx)
   }
 
   return util::allocateNode<FunctionDecl>(
-      ctx, ident, typeSpec.value().second, params.value(), nullptr,
+      ctx, ident, typeSpec.value().second, params.value(), nullptr, ctx,
       SourceLocation(externToken.getLineNo(), externToken.getColumnNo(),
                      currToken.getLineNo(), currToken.getColumnNo(),
                      lexer.getFileName()));
@@ -400,7 +400,7 @@ auto Parser::parseFunDecl(Lexer &lexer, ASTContext &ctx)
   }
 
   return util::allocateNode<FunctionDecl>(
-      ctx, ident, typeSpec->second, params.value(), block.value(),
+      ctx, ident, typeSpec->second, params.value(), block.value(), ctx,
       SourceLocation(typeSpec->first.getLineNo(), typeSpec->first.getColumnNo(),
                      block.value()->getLocation().endLineNo,
                      block.value()->getLocation().endColumnNo,

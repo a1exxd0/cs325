@@ -32,7 +32,7 @@ public:
   auto getVoidType() const -> Type * { return voidType; }
 
   auto getArrayType(Type *elementType, const std::vector<Expr *> &dims)
-      -> Type * {
+      -> ArrayType * {
     assert(elementType);
     assert(!dims.empty() && dims.size() <= 3);
 
@@ -49,7 +49,7 @@ public:
     return arr;
   }
 
-  auto getPtrType(Type *elementType) -> Type * {
+  auto getPtrType(Type *elementType) -> PointerType * {
     assert(elementType);
     auto it = ptrCache.find(elementType);
     if (it != ptrCache.end()) {
@@ -62,7 +62,7 @@ public:
   }
 
   auto getFunctionType(Type *returnType, const std::vector<Type *> argTypes)
-      -> Type * {
+      -> FunctionType * {
     assert(returnType);
     auto key = FunctionType{returnType, argTypes};
     auto it = functionCache.find(key);
