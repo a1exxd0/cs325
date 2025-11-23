@@ -18,6 +18,7 @@ public:
     TK_VOID,
     TK_ARRAY,
     TK_PTR,
+    TK_FUNCTION,
   };
 
 private:
@@ -74,6 +75,29 @@ public:
   }
 };
 
+class FunctionType : public Type {
+  Type *returnType;
+  std::vector<Type *> argTypes;
+
+public:
+  FunctionType(Type *returnType, std::vector<Type *> argTypes)
+      : Type(TK_FUNCTION), returnType(returnType),
+        argTypes(std::move(argTypes)) {}
+  auto getReturnType() const -> Type * { return returnType; }
+  auto getArgTypes() const -> const std::vector<Type *> & { return argTypes; }
+
+  auto operator==(const FunctionType &other) const noexcept -> bool {
+    auto sameReturn = this->returnType == other.returnType;
+    auto sameArgs = this->argTypes.size() == other.argTypes.size();
+    for (auto i = std::size_t{};
+         i < std::min(this->argTypes.size(), other.argTypes.size()); ++i) {
+      sameArgs &= this->argTypes[i] == other.argTypes[i];
+    }
+
+    return sameReturn && sameArgs;
+  }
+};
+
 class ArrayTypeHash {
 public:
   auto operator()(const ArrayType &type) const noexcept -> std::size_t {
@@ -81,6 +105,20 @@ public:
     for (auto i = std::uint8_t(); i < type.getDimensions().size(); ++i) {
       // TODO: check safety
       hsh ^= std::hash<long>{}(reinterpret_cast<long>(type.getDimensions()[i]) +
+                               0x9e3779b + (hsh << 6) + (hsh >> 2));
+    }
+
+    return hsh;
+  }
+};
+
+class FunctionTypeHash {
+public:
+  auto operator()(const FunctionType &type) const noexcept -> std::size_t {
+    auto hsh = std::hash<Type *>{}(type.getReturnType());
+    for (auto i = std::uint8_t(); i < type.getArgTypes().size(); ++i) {
+      // TODO: check safety
+      hsh ^= std::hash<long>{}(reinterpret_cast<long>(type.getArgTypes()[i]) +
                                0x9e3779b + (hsh << 6) + (hsh >> 2));
     }
 

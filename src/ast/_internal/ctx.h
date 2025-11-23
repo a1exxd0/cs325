@@ -61,6 +61,19 @@ public:
     return ptr;
   }
 
+  auto getFunctionType(Type *returnType, const std::vector<Type *> argTypes)
+      -> Type * {
+    assert(returnType);
+    auto key = FunctionType{returnType, argTypes};
+    auto it = functionCache.find(key);
+    if (it != functionCache.end())
+      return it->second;
+
+    auto fun = create<FunctionType>(returnType, argTypes);
+    functionCache.emplace(std::move(key), fun);
+    return fun;
+  }
+
 private:
   llvm::BumpPtrAllocator Alloc;
 
@@ -71,5 +84,7 @@ private:
 
   std::unordered_map<ArrayType, ArrayType *, ArrayTypeHash> arrayCache;
   std::unordered_map<Type *, PointerType *> ptrCache;
+  std::unordered_map<FunctionType, FunctionType *, FunctionTypeHash>
+      functionCache;
 };
 } // namespace mccomp
