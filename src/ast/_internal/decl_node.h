@@ -82,6 +82,7 @@ class FunctionDecl final : public Decl {
   std::vector<ParmVarDecl *> params;
   ASTNode *body; // nullable for extern
   FunctionType *functionType;
+  bool used = false;
   bool valid = true;
 
 public:
@@ -108,6 +109,9 @@ public:
 
   auto invalidate() -> void { this->valid = false; }
   auto isValid() const -> bool { return this->valid; }
+
+  auto markUsed() -> void { this->used = true; }
+  auto isUsed() const -> bool { return this->used; }
 
   auto getBody() -> ASTNode * { return body; }
   auto getBody() const -> const ASTNode * { return body; }
