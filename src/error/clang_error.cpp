@@ -309,7 +309,6 @@ auto ClangError::normalizeCaretPosition(std::size_t column,
   if (caretPos > lineLength) {
     caretPos = lineLength > 0 ? lineLength + 1 : 1;
   }
-  fmt::println("caretPos: {}, col: {}, ll: {}", caretPos, column, lineLength);
   return caretPos;
 }
 

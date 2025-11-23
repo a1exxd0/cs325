@@ -1354,7 +1354,6 @@ auto Parser::parsePrimary(Lexer &lexer, ASTContext &ctx)
 auto Parser::parseArgs(Lexer &lexer, ASTContext &ctx)
     -> tl::expected<std::vector<Expr *>, ClangError> {
   auto lookahead = this->peekNextToken(lexer);
-  std::cout << "with lookahead " << lookahead << std::endl;
   if (lookahead.in(util::FOLLOW_args)) {
     return {};
   }
