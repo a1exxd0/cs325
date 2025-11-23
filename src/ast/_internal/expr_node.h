@@ -3,6 +3,7 @@
 #include "error/error.h"
 #include "tokens/tokens.h"
 #include <ast/_internal/ast_node.h>
+#include <ast/_internal/ctx.h>
 #include <ast/_internal/type.h>
 #include <ast/_internal/visitor.h>
 
@@ -11,7 +12,7 @@ namespace mccomp {
 class Type;
 
 class Expr : public ASTNode {
-  Type *type;
+  Type *type = nullptr;
 
 public:
   Expr(NodeKind kind, SourceLocation loc) : ASTNode(kind, std::move(loc)) {}
@@ -345,8 +346,10 @@ class IntegerLiteral : public Expr {
   int lit;
 
 public:
-  IntegerLiteral(int lit, SourceLocation loc)
-      : Expr(NK_IntegerLiteral, std::move(loc)), lit(lit) {}
+  IntegerLiteral(int lit, ASTContext &ctx, SourceLocation loc)
+      : Expr(NK_IntegerLiteral, std::move(loc)), lit(lit) {
+    this->setType(ctx.getIntType());
+  }
 
   auto getLit() const -> int { return lit; }
 
@@ -369,8 +372,10 @@ class FloatLiteral : public Expr {
   double lit;
 
 public:
-  FloatLiteral(double lit, SourceLocation loc)
-      : Expr(NK_FloatLiteral, std::move(loc)), lit(lit) {}
+  FloatLiteral(double lit, ASTContext &ctx, SourceLocation loc)
+      : Expr(NK_FloatLiteral, std::move(loc)), lit(lit) {
+    this->setType(ctx.getFloatType());
+  }
 
   auto getLit() const -> int { return lit; }
 
@@ -392,8 +397,10 @@ class BoolLiteral : public Expr {
   bool lit;
 
 public:
-  BoolLiteral(bool lit, SourceLocation loc)
-      : Expr(NK_FloatLiteral, std::move(loc)), lit(lit) {}
+  BoolLiteral(bool lit, ASTContext &ctx, SourceLocation loc)
+      : Expr(NK_FloatLiteral, std::move(loc)), lit(lit) {
+    this->setType(ctx.getBoolType());
+  }
 
   auto getLit() const -> int { return lit; }
 

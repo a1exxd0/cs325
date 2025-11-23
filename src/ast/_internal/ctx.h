@@ -1,6 +1,5 @@
 #pragma once
 
-#include <ast/_internal/expr_node.h>
 #include <ast/_internal/type.h>
 #include <llvm/Support/Allocator.h>
 

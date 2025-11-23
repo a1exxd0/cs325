@@ -1,8 +1,10 @@
 #pragma once
 
-#include <ast/_internal/expr_node.h>
+#include "error/error.h"
+#include "fmt/base.h"
 #include <cassert>
 #include <cstdint>
+#include <sstream>
 #include <vector>
 
 namespace mccomp {
@@ -30,12 +32,39 @@ protected:
 public:
   virtual ~Type() = default;
   auto getKind() const -> Kind { return kind; }
+  virtual auto to_string() const -> std::string = 0;
+
+  static bool classof(const Type *) { return true; }
 };
 
 class BuiltinType : public Type {
 public:
   explicit BuiltinType(Kind k) : Type(k) {
     assert(k == TK_INT || k == TK_FLOAT || k == TK_BOOL || k == TK_VOID);
+  }
+
+  auto to_string() const -> std::string override {
+    switch (this->getKind()) {
+    case Type::TK_INT:
+      return "int";
+    case Type::TK_FLOAT:
+      return "float";
+    case Type::TK_BOOL:
+      return "bool";
+    case Type::TK_VOID:
+      return "void";
+    default:
+      auto error =
+          ClangError(ClangErrorSeverity::ERROR, "bad print of BuiltinType");
+      fmt::println(stderr, "{}", error.to_string());
+      exit(1);
+    }
+  }
+
+  static bool classof(const Type *t) {
+    auto k = t->getKind();
+    return (k == Type::TK_VOID || k == Type::TK_BOOL || k == Type::TK_FLOAT ||
+            k == Type::TK_INT);
   }
 };
 
@@ -49,6 +78,12 @@ public:
   auto operator==(const PointerType &other) const noexcept -> bool {
     return element == other.element;
   }
+
+  auto to_string() const -> std::string {
+    return fmt::format(FMT_COMPILE("*({})"), element->to_string());
+  }
+
+  static bool classof(const Type *t) { return t->getKind() == Type::TK_PTR; }
 };
 
 class ArrayType : public Type {
@@ -73,6 +108,18 @@ public:
 
     return sameUnderlying && sameDimSize;
   }
+
+  auto to_string() const -> std::string {
+    // TODO: print exprs
+    auto fmtStr =
+        fmt::format(FMT_COMPILE("{} {}{}{}"), elementType->to_string(),
+                    fmt::format("[{}]", "x"),
+                    ((dims.size() >= 2) ? fmt::format("[{}]", "x") : ""),
+                    ((dims.size() >= 3) ? fmt::format("[{}]", "x") : ""));
+    return fmtStr;
+  }
+
+  static bool classof(const Type *t) { return t->getKind() == Type::TK_ARRAY; }
 };
 
 class FunctionType : public Type {
@@ -95,6 +142,24 @@ public:
     }
 
     return sameReturn && sameArgs;
+  }
+
+  auto to_string() const -> std::string {
+    auto ss = std::stringstream();
+    bool first = true;
+    for (const auto &t : argTypes) {
+      if (!first)
+        ss << ", ";
+      ss << t->to_string();
+      first = false;
+    }
+
+    return fmt::format(FMT_COMPILE("{} ({})"), returnType->to_string(),
+                       ss.str());
+  }
+
+  static bool classof(const Type *t) {
+    return t->getKind() == Type::TK_FUNCTION;
   }
 };
 

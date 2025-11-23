@@ -1333,17 +1333,17 @@ auto Parser::parsePrimary(Lexer &lexer, ASTContext &ctx)
   } else if (firstToken.getTokenType() == TokenType::INT_LIT) {
     this->getNextToken(lexer);
     return util::allocateNode<IntegerLiteral>(
-        ctx, firstToken.asInt(),
+        ctx, firstToken.asInt(), ctx,
         SourceLocation(firstToken, lexer.getFileName()));
   } else if (firstToken.getTokenType() == TokenType::FLOAT_LIT) {
     this->getNextToken(lexer);
     return util::allocateNode<FloatLiteral>(
-        ctx, firstToken.asFloat(),
+        ctx, firstToken.asFloat(), ctx,
         SourceLocation(firstToken, lexer.getFileName()));
   } else if (firstToken.getTokenType() == TokenType::BOOL_LIT) {
     this->getNextToken(lexer);
     return util::allocateNode<BoolLiteral>(
-        ctx, firstToken.asBool(),
+        ctx, firstToken.asBool(), ctx,
         SourceLocation(firstToken, lexer.getFileName()));
   } else {
     return util::badParseCase();

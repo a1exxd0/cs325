@@ -1,6 +1,5 @@
 #pragma once
 
-#include "semantic/type_checker.h"
 #include <ast/_internal/ast_node.h>
 #include <ast/_internal/ctx.h>
 #include <ast/_internal/type.h>
