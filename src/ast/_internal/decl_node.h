@@ -11,6 +11,8 @@ class Decl : public ASTNode {
   Type *type;
   std::string name;
   Token ident;
+  bool valid = true;
+  bool used = false;
 
 public:
   Decl(NodeKind kind, Token ident, Type *type, SourceLocation loc)
@@ -21,6 +23,12 @@ public:
   auto getType() -> Type * { return type; }
   auto getType() const -> const Type * { return type; }
   auto setType(Type *type) -> void { this->type = type; }
+
+  auto invalidate() -> void { this->valid = false; }
+  auto isValid() const -> bool { return this->valid; }
+
+  auto markUsed() -> void { this->used = true; }
+  auto isUsed() const -> bool { return this->used; }
 
   auto getName() -> std::string & { return name; }
   auto getName() const -> std::string_view { return name; }
@@ -105,12 +113,6 @@ public:
   auto getParams() const -> const std::vector<ParmVarDecl *> & {
     return params;
   }
-
-  auto invalidate() -> void { this->valid = false; }
-  auto isValid() const -> bool { return this->valid; }
-
-  auto markUsed() -> void { this->used = true; }
-  auto isUsed() const -> bool { return this->used; }
 
   auto getBody() -> ASTNode * { return body; }
   auto getBody() const -> const ASTNode * { return body; }
