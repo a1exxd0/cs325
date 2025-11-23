@@ -245,6 +245,7 @@ auto ASTPrinter::visitCallExpr(const CallExpr &node) -> void {
       fmt::format(FMT_COMPILE("{}{}CallExpr{} {} {}"), formatPrefix(),
                   text_colors::MAGNETA, text_colors::RESET,
                   formatAddress(&node), formatRegion(node.getLocation()));
+  fmt::println("{}", fmtStr);
   this->currFile = node.getLocation().fileName.value();
   this->currLine = node.getLocation().endLineNo;
   this->currCol = node.getLocation().endColumnNo;
