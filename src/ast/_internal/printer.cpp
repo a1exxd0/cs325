@@ -303,10 +303,11 @@ auto ASTPrinter::visitArraySubscriptExpr(const ArraySubscriptExpr &node)
 }
 
 auto ASTPrinter::visitImplicitCastExpr(const ImplicitCastExpr &node) -> void {
-  auto fmtStr = fmt::format(
-      FMT_COMPILE("{}{}ImplicitCastExpr{} {} {}"), formatPrefix(),
-      text_colors::MAGNETA, text_colors::RESET, formatAddress(&node),
-      formatRegion(node.getLocation()), formatType(node.getType()));
+  auto fmtStr =
+      fmt::format(FMT_COMPILE("{}{}ImplicitCastExpr{} {} {} {} {}"),
+                  formatPrefix(), text_colors::MAGNETA, text_colors::RESET,
+                  formatAddress(&node), formatRegion(node.getLocation()),
+                  formatType(node.getType()), to_string(node.getCastType()));
   fmt::println("{}", fmtStr);
   this->currFile = node.getLocation().fileName.value();
   this->currLine = node.getLocation().endLineNo;

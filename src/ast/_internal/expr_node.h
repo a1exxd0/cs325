@@ -61,7 +61,21 @@ public:
 };
 
 class ImplicitCastExpr : public Expr {
+public:
+  enum CastType {
+    LValueToRValue,
+    ArrayToPointer,
+    FunctionToPointer,
+    IntegralToBoolean,
+    IntegralToFloat,
+    FloatToBoolean,
+    BooleanToIntegral,
+    BooleanToFloat,
+  };
+
+private:
   ASTNode *expr;
+  CastType castType = static_cast<CastType>(-1);
 
 public:
   ImplicitCastExpr(ASTNode *expr, SourceLocation loc)
@@ -69,6 +83,9 @@ public:
 
   auto getExpr() -> ASTNode * { return expr; }
   auto getExpr() const -> ASTNode * { return expr; }
+
+  auto getCastType() const -> CastType { return this->castType; }
+  auto setCastType(CastType castType) -> void { this->castType = castType; }
 
   auto accept(ASTVisitor &visitor) -> void override {
     visitor.visitImplicitCastExpr(*this);
@@ -377,7 +394,7 @@ public:
     this->setType(ctx.getFloatType());
   }
 
-  auto getLit() const -> int { return lit; }
+  auto getLit() const -> double { return lit; }
 
   auto accept(ASTVisitor &visitor) -> void override {
     visitor.visitFloatLiteral(*this);
@@ -402,7 +419,7 @@ public:
     this->setType(ctx.getBoolType());
   }
 
-  auto getLit() const -> int { return lit; }
+  auto getLit() const -> bool { return lit; }
 
   auto accept(ASTVisitor &visitor) -> void override {
     visitor.visitBoolLiteral(*this);
@@ -418,5 +435,29 @@ public:
     return {};
   }
 };
+
+static inline auto to_string(const ImplicitCastExpr::CastType ct)
+    -> std::string {
+  switch (ct) {
+  case ImplicitCastExpr::LValueToRValue:
+    return "LValueToRValue";
+  case ImplicitCastExpr::ArrayToPointer:
+    return "ArrayToPointer";
+  case ImplicitCastExpr::FunctionToPointer:
+    return "FunctionToPointer";
+  case ImplicitCastExpr::IntegralToBoolean:
+    return "IntegralToBoolean";
+  case ImplicitCastExpr::IntegralToFloat:
+    return "IntegralToFloat";
+  case ImplicitCastExpr::FloatToBoolean:
+    return "FloatToBoolean";
+  case ImplicitCastExpr::BooleanToIntegral:
+    return "BooleanToIntegral";
+  case ImplicitCastExpr::BooleanToFloat:
+    return "BooleanToFloat";
+  default:
+    return "<invalid cast>";
+  }
+}
 
 } // namespace mccomp
