@@ -58,7 +58,7 @@ public:
 };
 
 class VarDecl final : public Decl {
-  ASTNode *init; // nullable
+  ASTNode *init = nullptr; // nullable
 
 public:
   VarDecl(Token ident, Type *type, ASTNode *init, SourceLocation loc)
@@ -87,10 +87,8 @@ public:
 
 class FunctionDecl final : public Decl {
   std::vector<ParmVarDecl *> params;
-  ASTNode *body; // nullable for extern
+  ASTNode *body = nullptr; // nullable for extern
   FunctionType *functionType;
-  bool used = false;
-  bool valid = true;
 
 public:
   FunctionDecl(Token ident, Type *returnType, std::vector<ParmVarDecl *> params,
@@ -98,8 +96,8 @@ public:
       : Decl(NK_FunctionDecl, std::move(ident), returnType, std::move(loc)),
         params(std::move(params)), body(body) {
     auto paramsAsTypes = std::vector<Type *>();
-    paramsAsTypes.reserve(params.size());
-    for (auto &param : params)
+    paramsAsTypes.reserve(this->params.size());
+    for (auto &param : this->params)
       paramsAsTypes.push_back(param->getType());
     auto key = FunctionType(returnType, paramsAsTypes);
     auto functionType = ctx.getFunctionType(returnType, paramsAsTypes);
@@ -130,7 +128,8 @@ public:
   auto getChildren() -> std::vector<ASTNode *> override {
     auto out = std::vector<ASTNode *>();
     out.reserve(params.size() + (body ? 1 : 0));
-    out.insert(out.end(), params.begin(), params.end());
+    for (auto *p : params)
+      out.push_back(p);
     if (body)
       out.push_back(body);
     return out;
@@ -139,7 +138,8 @@ public:
   auto getChildren() const -> std::vector<const ASTNode *> override {
     auto out = std::vector<const ASTNode *>();
     out.reserve(params.size() + (body ? 1 : 0));
-    out.insert(out.end(), params.begin(), params.end());
+    for (auto *p : params)
+      out.push_back(p);
     if (body)
       out.push_back(body);
     return out;
