@@ -1313,8 +1313,14 @@ auto Parser::parsePrimary(Lexer &lexer, ASTContext &ctx)
       return tl::unexpected(ref.error());
     }
 
+    auto castFunction = util::allocateNode<ImplicitCastExpr>(
+        ctx, ref.value(), ref.value()->getLocation());
+    if (!castFunction) {
+      return tl::unexpected(castFunction.error());
+    }
+
     return util::allocateNode<CallExpr>(
-        ctx, ref.value(), std::move(args.value()),
+        ctx, castFunction.value(), std::move(args.value()),
         SourceLocation(ident.getLineNo(), ident.getColumnNo(), rpar.getLineNo(),
                        rpar.getColumnNo(), lexer.getFileName()));
   } else if (firstToken.getTokenType() == TokenType::IDENT) {

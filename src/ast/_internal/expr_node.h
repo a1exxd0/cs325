@@ -59,17 +59,43 @@ public:
   }
 };
 
+class ImplicitCastExpr : public Expr {
+  ASTNode *expr;
+
+public:
+  ImplicitCastExpr(ASTNode *expr, SourceLocation loc)
+      : Expr(NK_ImplicitCastExpr, std::move(loc)), expr(expr) {}
+
+  auto getExpr() -> ASTNode * { return expr; }
+  auto getExpr() const -> ASTNode * { return expr; }
+
+  auto accept(ASTVisitor &visitor) -> void override {
+    visitor.visitImplicitCastExpr(*this);
+  }
+
+  auto accept(ConstASTVisitor &visitor) const -> void override {
+    visitor.visitImplicitCastExpr(*this);
+  }
+
+  auto getChildren() -> std::vector<ASTNode *> override { return {expr}; }
+
+  auto getChildren() const -> std::vector<const ASTNode *> override {
+    return {expr};
+  }
+};
+
 class CallExpr final : public Expr {
-  DeclRefExpr *callee;
+  ImplicitCastExpr *callee;
   std::vector<Expr *> args;
 
 public:
-  CallExpr(DeclRefExpr *callee, std::vector<Expr *> args, SourceLocation loc)
+  CallExpr(ImplicitCastExpr *callee, std::vector<Expr *> args,
+           SourceLocation loc)
       : Expr(NK_CallExpr, std::move(loc)), callee(callee),
         args(std::move(args)) {}
 
-  auto getCallee() -> DeclRefExpr * { return callee; }
-  auto getCallee() const -> const DeclRefExpr * { return callee; }
+  auto getCallee() -> ImplicitCastExpr * { return callee; }
+  auto getCallee() const -> const ImplicitCastExpr * { return callee; }
 
   auto getArgs() -> std::vector<Expr *> & { return args; }
   auto getArgs() const -> std::vector<const Expr *> {
@@ -156,31 +182,6 @@ public:
 
   auto getChildren() const -> std::vector<const ASTNode *> override {
     return {array, index};
-  }
-};
-
-class ImplicitCastExpr : public Expr {
-  ASTNode *expr;
-
-public:
-  ImplicitCastExpr(ASTNode *expr, SourceLocation loc)
-      : Expr(NK_ImplicitCastExpr, std::move(loc)), expr(expr) {}
-
-  auto getExpr() -> ASTNode * { return expr; }
-  auto getExpr() const -> ASTNode * { return expr; }
-
-  auto accept(ASTVisitor &visitor) -> void override {
-    visitor.visitImplicitCastExpr(*this);
-  }
-
-  auto accept(ConstASTVisitor &visitor) const -> void override {
-    visitor.visitImplicitCastExpr(*this);
-  }
-
-  auto getChildren() -> std::vector<ASTNode *> override { return {expr}; }
-
-  auto getChildren() const -> std::vector<const ASTNode *> override {
-    return {expr};
   }
 };
 
