@@ -48,6 +48,17 @@ public:
     return arr;
   }
 
+  auto getPtrTypeFromArrayType(ArrayType *type) -> PointerType * {
+    auto dims = type->getDimensions();
+    auto subDims = std::vector(dims.begin() + 1, dims.end());
+    if (subDims.empty()) {
+      return getPtrType(type->getElementType());
+    }
+
+    auto subArrayType = getArrayType(type->getElementType(), subDims);
+    return getPtrType(subArrayType);
+  }
+
   auto getPtrType(Type *elementType) -> PointerType * {
     assert(elementType);
     auto it = ptrCache.find(elementType);

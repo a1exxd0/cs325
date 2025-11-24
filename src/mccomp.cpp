@@ -41,6 +41,7 @@
 #include <fmt/format.h>
 #include <lexer/lexer.h>
 #include <parser/parser.h>
+#include <semantic/type_checker.h>
 #include <tokens/tokens.h>
 
 using namespace llvm;
@@ -112,6 +113,13 @@ int main(int argc, char **argv) {
   }
 
   auto astPrinter = mccomp::ASTPrinter();
+  auto typeChecker = mccomp::TypeChecker(astContext);
+  ast.value()->accept(typeChecker);
+
+  if (!typeChecker.isSuccess()) {
+    fmt::println("unsuccessful type check");
+  }
+
   ast.value()->accept(astPrinter);
 
   printf(

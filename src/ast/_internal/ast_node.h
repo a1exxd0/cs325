@@ -98,6 +98,9 @@ public:
   virtual auto accept(ConstASTVisitor &visitor) const -> void = 0;
   virtual auto getChildren() -> std::vector<ASTNode *> = 0;
   virtual auto getChildren() const -> std::vector<const ASTNode *> = 0;
+  static auto classof(const ASTNode *) -> bool { return true; }
 };
+
+auto to_string(ASTNode::NodeKind kind) -> std::string;
 
 } // namespace mccomp

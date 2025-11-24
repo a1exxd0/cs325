@@ -59,8 +59,9 @@ static constexpr auto FIRST_while_stmt =
 static constexpr auto FIRST_return_stmt =
     std::array<TokenType, 1>{TokenType::RETURN};
 static constexpr auto FIRST_expr = std::array<TokenType, 7>{
-    TokenType::IDENT,   TokenType::MINUS,     TokenType::LPAR,
-    TokenType::INT_LIT, TokenType::FLOAT_LIT, TokenType::BOOL_LIT};
+    TokenType::IDENT,   TokenType::MINUS,   TokenType::LPAR,
+    TokenType::NOT,     TokenType::INT_LIT, TokenType::FLOAT_LIT,
+    TokenType::BOOL_LIT};
 static constexpr auto FIRST_else_stmt =
     std::array<TokenType, 1>{TokenType::ELSE};
 static constexpr auto FIRST_lvalue = std::array<TokenType, 1>{TokenType::IDENT};

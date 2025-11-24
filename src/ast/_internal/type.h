@@ -4,12 +4,42 @@
 #include "fmt/base.h"
 #include <cassert>
 #include <cstdint>
+#include <llvm/Support/Casting.h>
 #include <sstream>
+#include <tl/expected.hpp>
 #include <vector>
 
 namespace mccomp {
 
 class Expr;
+
+enum class CastType {
+  LValueToRValue,
+  ArrayToPointerDecay,
+  FunctionToPointerDecay,
+  IntegralToFloat,
+  BooleanToIntegral,
+  BooleanToFloat,
+};
+
+static inline auto to_string(const CastType ct) -> std::string {
+  switch (ct) {
+  case CastType::LValueToRValue:
+    return "LValueToRValue";
+  case CastType::ArrayToPointerDecay:
+    return "ArrayToPointerDecay";
+  case CastType::FunctionToPointerDecay:
+    return "FunctionToPointerDecay";
+  case CastType::IntegralToFloat:
+    return "IntegralToFloat";
+  case CastType::BooleanToIntegral:
+    return "BooleanToIntegral";
+  case CastType::BooleanToFloat:
+    return "BooleanToFloat";
+  default:
+    return "<invalid cast>";
+  }
+}
 
 class Type {
 public:
@@ -33,8 +63,9 @@ public:
   virtual ~Type() = default;
   auto getKind() const -> Kind { return kind; }
   virtual auto to_string() const -> std::string = 0;
-
-  static bool classof(const Type *) { return true; }
+  auto convertsTo(const Type *type, bool onFunctionReturn) const
+      -> tl::expected<std::optional<CastType>, std::string>;
+  static auto classof(const Type *) -> bool { return true; }
 };
 
 class BuiltinType : public Type {
@@ -61,7 +92,7 @@ public:
     }
   }
 
-  static bool classof(const Type *t) {
+  static auto classof(const Type *t) -> bool {
     auto k = t->getKind();
     return (k == Type::TK_VOID || k == Type::TK_BOOL || k == Type::TK_FLOAT ||
             k == Type::TK_INT);

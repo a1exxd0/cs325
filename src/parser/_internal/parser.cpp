@@ -1011,7 +1011,8 @@ auto Parser::parseLValue(Lexer &lexer, ASTContext &ctx)
   auto identSource = SourceLocation(
       ident.getLineNo(), ident.getColumnNo(), ident.getLineNo(),
       ident.getColumnNo() + ident.getLexeme().size(), lexer.getFileName());
-  auto declRefExpr = util::allocateNode<DeclRefExpr>(ctx, ident, identSource);
+  auto declRefExpr = util::allocateNode<DeclRefExpr>(
+      ctx, ident, DeclRefExpr::VARIABLE, identSource);
   if (!declRefExpr)
     return tl::unexpected(declRefExpr.error());
 
@@ -1021,13 +1022,8 @@ auto Parser::parseLValue(Lexer &lexer, ASTContext &ctx)
   }
 
   for (const auto dimExpr : optDims.value()) {
-    auto implicitCast =
-        util::allocateNode<ImplicitCastExpr>(ctx, rootExpr, identSource);
-    if (!implicitCast)
-      return tl::unexpected(implicitCast.error());
-
     auto arraySubscriptExpr = util::allocateNode<ArraySubscriptExpr>(
-        ctx, implicitCast.value(), dimExpr,
+        ctx, rootExpr, dimExpr,
         SourceLocation(ident.getLineNo(), ident.getColumnNo(),
                        lastTokenConsumed->getLineNo(),
                        lastTokenConsumed->getColumnNo(), lexer.getFileName()));
@@ -1308,19 +1304,14 @@ auto Parser::parsePrimary(Lexer &lexer, ASTContext &ctx)
     }
 
     auto ref = util::allocateNode<DeclRefExpr>(
-        ctx, ident, SourceLocation(ident, lexer.getFileName()));
+        ctx, ident, DeclRefExpr::FUNCTION,
+        SourceLocation(ident, lexer.getFileName()));
     if (!ref) {
       return tl::unexpected(ref.error());
     }
 
-    auto castFunction = util::allocateNode<ImplicitCastExpr>(
-        ctx, ref.value(), ref.value()->getLocation());
-    if (!castFunction) {
-      return tl::unexpected(castFunction.error());
-    }
-
     return util::allocateNode<CallExpr>(
-        ctx, castFunction.value(), std::move(args.value()),
+        ctx, ref.value(), std::move(args.value()),
         SourceLocation(ident.getLineNo(), ident.getColumnNo(), rpar.getLineNo(),
                        rpar.getColumnNo(), lexer.getFileName()));
   } else if (firstToken.getTokenType() == TokenType::IDENT) {

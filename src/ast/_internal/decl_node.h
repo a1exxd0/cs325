@@ -55,6 +55,10 @@ public:
   auto getChildren() const -> std::vector<const ASTNode *> override {
     return {};
   }
+
+  static auto classof(const ASTNode *n) -> bool {
+    return n->getKind() == NK_ParmVarDecl;
+  }
 };
 
 class VarDecl final : public Decl {
@@ -82,6 +86,10 @@ public:
   auto getChildren() const -> std::vector<const ASTNode *> override {
     return init ? std::vector<const ASTNode *>{init}
                 : std::vector<const ASTNode *>{};
+  }
+
+  static auto classof(const ASTNode *n) -> bool {
+    return n->getKind() == NK_VarDecl;
   }
 };
 
@@ -143,6 +151,10 @@ public:
     if (body)
       out.push_back(body);
     return out;
+  }
+
+  static auto classof(const ASTNode *n) -> bool {
+    return n->getKind() == NK_FunctionDecl;
   }
 };
 

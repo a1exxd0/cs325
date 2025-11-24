@@ -2,6 +2,8 @@
 
 #include <ast/ast.h>
 #include <deque>
+#include <fmt/compile.h>
+#include <fmt/format.h>
 
 namespace mccomp {
 
