@@ -281,11 +281,12 @@ auto ASTPrinter::visitParenExpr(const ParenExpr &node) -> void {
 
 auto ASTPrinter::visitDeclRefExpr(const DeclRefExpr &node) -> void {
   auto fmtStr = fmt::format(
-      FMT_COMPILE("{}{}DeclRefExpr{} {} {} {} {} {}"), formatPrefix(),
+      FMT_COMPILE("{}{}DeclRefExpr{} {} {} {} {} {} {}"), formatPrefix(),
       text_colors::MAGNETA, text_colors::RESET, formatAddress(&node),
       formatRegionWithIdent(node.getLocation(), node.ident),
       (node.getReference() ? formatAddress(node.getReference().value()) : ""),
-      node.getName(), formatType(node.getType()));
+      node.getName(), formatType(node.getType()),
+      (node.getValueCategory() == Expr::LValue ? "lvalue" : "rvalue"));
   fmt::println("{}", fmtStr);
   this->currFile = node.getLocation().fileName.value();
   this->currLine = node.getLocation().endLineNo;
@@ -295,9 +296,10 @@ auto ASTPrinter::visitDeclRefExpr(const DeclRefExpr &node) -> void {
 auto ASTPrinter::visitArraySubscriptExpr(const ArraySubscriptExpr &node)
     -> void {
   auto fmtStr = fmt::format(
-      FMT_COMPILE("{}{}ArraySubscriptExpr{} {} {} {}"), formatPrefix(),
+      FMT_COMPILE("{}{}ArraySubscriptExpr{} {} {} {} {}"), formatPrefix(),
       text_colors::MAGNETA, text_colors::RESET, formatAddress(&node),
-      formatRegion(node.getLocation()), formatType(node.getType()));
+      formatRegion(node.getLocation()), formatType(node.getType()),
+      (node.getValueCategory() == Expr::LValue ? "lvalue" : "rvalue"));
   fmt::println("{}", fmtStr);
   this->currFile = node.getLocation().fileName.value();
   this->currLine = node.getLocation().endLineNo;
@@ -319,11 +321,12 @@ auto ASTPrinter::visitImplicitCastExpr(const ImplicitCastExpr &node) -> void {
 }
 
 auto ASTPrinter::visitBinaryOperator(const BinaryOperator &node) -> void {
-  auto fmtStr =
-      fmt::format(FMT_COMPILE("{}{}BinaryOperator{} {} {} {} {}"),
-                  formatPrefix(), text_colors::MAGNETA, text_colors::RESET,
-                  formatAddress(&node), formatRegion(node.getLocation()),
-                  formatType(node.getType()), node.getOpToken().getLexeme());
+  auto fmtStr = fmt::format(
+      FMT_COMPILE("{}{}BinaryOperator{} {} {} {} '{}' {}"), formatPrefix(),
+      text_colors::MAGNETA, text_colors::RESET, formatAddress(&node),
+      formatRegion(node.getLocation()), formatType(node.getType()),
+      node.getOpToken().getLexeme(),
+      (node.getValueCategory() == Expr::LValue ? "lvalue" : "rvalue"));
   fmt::println("{}", fmtStr);
   this->currFile = node.getLocation().fileName.value();
   this->currLine = node.getLocation().endLineNo;
@@ -333,7 +336,7 @@ auto ASTPrinter::visitBinaryOperator(const BinaryOperator &node) -> void {
 
 auto ASTPrinter::visitUnaryOperator(const UnaryOperator &node) -> void {
   auto fmtStr = fmt::format(
-      FMT_COMPILE("{}{}UnaryOperator{} {} {} {} {}"), formatPrefix(),
+      FMT_COMPILE("{}{}UnaryOperator{} {} {} '{}' {}"), formatPrefix(),
       text_colors::MAGNETA, text_colors::RESET, formatAddress(&node),
       formatType(node.getType()), formatRegion(node.getLocation()),
       node.getOpToken().getLexeme());

@@ -163,6 +163,7 @@ private:
 
   auto decayFunction(Expr *expr) -> Expr *;
   auto decayArray(Expr *expr) -> Expr *;
+  auto lValueToRValue(Expr *expr) -> Expr *;
   auto promoteInt(Expr *expr) -> Expr *;
   auto promoteBoolToFloat(Expr *expr) -> Expr *;
   auto promoteBoolToInt(Expr *expr) -> Expr *;

@@ -16,12 +16,27 @@ class Expr : public ASTNode {
   bool valid = true;
 
 public:
+  enum ValueCategory {
+    LValue,
+    RValue,
+  };
+
   Expr(NodeKind kind, SourceLocation loc) : ASTNode(kind, std::move(loc)) {}
+
   auto getType() -> Type * { return type; }
   auto getType() const -> const Type * { return type; }
   auto setType(Type *type) -> void { this->type = type; }
+
+  auto getValueCategory() const -> std::optional<ValueCategory> {
+    return valueCategory;
+  }
+  auto setValueCategory(ValueCategory cat) -> void { valueCategory = cat; }
+
   auto invalidate() -> void { valid = false; }
   auto isValid() const -> bool { return valid; }
+
+private:
+  std::optional<ValueCategory> valueCategory = std::nullopt;
 };
 
 class DeclRefExpr : public Expr {
@@ -190,19 +205,21 @@ public:
 };
 
 class ArraySubscriptExpr : public Expr {
-  ASTNode *array;
-  ASTNode *index;
+  Expr *array;
+  Expr *index;
 
 public:
-  ArraySubscriptExpr(ASTNode *array, ASTNode *index, SourceLocation loc)
+  ArraySubscriptExpr(Expr *array, Expr *index, SourceLocation loc)
       : Expr(NK_ArraySubscriptExpr, std::move(loc)), array(array),
         index(index) {}
 
-  auto getArray() -> ASTNode * { return array; }
-  auto getArray() const -> const ASTNode * { return array; }
+  auto getArray() -> Expr * { return array; }
+  auto getArray() const -> const Expr * { return array; }
+  auto setArray(Expr *expr) -> void { this->array = expr; }
 
-  auto getIndex() -> ASTNode * { return index; }
-  auto getIndex() const -> ASTNode * { return index; }
+  auto getIndex() -> Expr * { return index; }
+  auto getIndex() const -> Expr * { return index; }
+  auto setIndex(Expr *expr) -> void { this->index = expr; }
 
   auto accept(ASTVisitor &visitor) -> void override {
     visitor.visitArraySubscriptExpr(*this);

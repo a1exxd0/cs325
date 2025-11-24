@@ -221,8 +221,8 @@ auto TypeChecker::visitReturnStmt(ReturnStmt &node) -> void {
   if (!canCast) {
     auto error = ClangError(
         ClangErrorSeverity::ERROR, node.getLocation().fileName.value(),
-        node.getLocation().startLineNo, node.getLocation().endLineNo,
-        canCast.error().c_str());
+        node.getExpr()->getLocation().startLineNo,
+        node.getExpr()->getLocation().startColumnNo, canCast.error().c_str());
     fmt::println("{}", error);
     this->success = false;
     return;
@@ -312,6 +312,7 @@ auto TypeChecker::visitCallExpr(CallExpr &node) -> void {
                                                   calledArgs[i]->getLocation());
       newNode->setCastType(canCast->value());
       newNode->setType(fnArgs[i]);
+      newNode->setValueCategory(Expr::RValue);
 
       calledArgs[i] = newNode;
     }
@@ -382,10 +383,126 @@ auto TypeChecker::visitDeclRefExpr(DeclRefExpr &node) -> void {
 
   node.setReference(symbol->get().decl);
   node.setType(symbol->get().type);
+  node.setValueCategory(Expr::LValue);
 }
 
 // TODO: implement
-auto TypeChecker::visitArraySubscriptExpr(ArraySubscriptExpr &node) -> void {}
+auto TypeChecker::visitArraySubscriptExpr(ArraySubscriptExpr &node) -> void {
+  node.getArray()->accept(*this);
+  node.getIndex()->accept(*this);
+  if (!node.getArray()->isValid() || !node.getIndex()->isValid()) {
+    node.invalidate();
+    success = false;
+    return;
+  }
+
+  if (llvm::isa<FunctionType>(node.getArray()->getType())) {
+    auto error = ClangError(
+        ClangErrorSeverity::ERROR, node.getLocation().fileName.value(),
+        node.getArray()->getLocation().startLineNo,
+        node.getArray()->getLocation().startColumnNo,
+        fmt::format("subscript of pointer to function type '{}'",
+                    llvm::dyn_cast<FunctionType>(node.getArray()->getType())
+                        ->to_string()));
+    fmt::println("{}", error);
+    success = false;
+    node.invalidate();
+    return;
+  } else if (llvm::isa<FunctionType>(node.getIndex()->getType())) {
+    auto error = ClangError(
+        ClangErrorSeverity::ERROR, node.getLocation().fileName.value(),
+        node.getIndex()->getLocation().startLineNo,
+        node.getIndex()->getLocation().startColumnNo,
+        fmt::format("subscript of pointer to function type '{}'",
+                    llvm::dyn_cast<FunctionType>(node.getArray()->getType())
+                        ->to_string()));
+    fmt::println("{}", error);
+    success = false;
+    node.invalidate();
+    return;
+  }
+
+  auto isIndexable = [](const Type *t) -> bool {
+    return t->getKind() == Type::TK_ARRAY || t->getKind() == Type::TK_PTR;
+  };
+
+  auto isIndex = [](const Type *t) -> bool {
+    return t->getKind() == Type::TK_INT || t->getKind() == Type::TK_BOOL;
+  };
+
+  auto bothIndexable = isIndexable(node.getArray()->getType()) &&
+                       isIndexable(node.getIndex()->getType());
+  auto neitherIndexable = !isIndexable(node.getArray()->getType()) &&
+                          !isIndexable(node.getIndex()->getType());
+  auto hasIndex = isIndex(node.getArray()->getType()) ||
+                  isIndex(node.getIndex()->getType());
+  if (bothIndexable) {
+    auto error = ClangError(ClangErrorSeverity::ERROR,
+                            node.getLocation().fileName.value(),
+                            node.getIndex()->getLocation().startLineNo,
+                            node.getIndex()->getLocation().startColumnNo,
+                            "array subscript is not an integer");
+    fmt::println("{}", error);
+    node.invalidate();
+    success = false;
+    return;
+  } else if (neitherIndexable) {
+    auto error = ClangError(ClangErrorSeverity::ERROR,
+                            node.getLocation().fileName.value(),
+                            node.getIndex()->getLocation().startLineNo,
+                            node.getIndex()->getLocation().startColumnNo,
+                            "subscripted value is not an array or pointer");
+    fmt::println("{}", error);
+    node.invalidate();
+    success = false;
+    return;
+  } else if (!hasIndex) {
+    auto error = ClangError(
+        ClangErrorSeverity::ERROR, node.getLocation().fileName.value(),
+        node.getIndex()->getLocation().startLineNo,
+        node.getIndex()->getLocation().startColumnNo,
+        fmt::format("invalid subscript of type '{}'",
+                    node.getIndex()->getType()->to_string()));
+    fmt::println("{}", error);
+    node.invalidate();
+    success = false;
+    return;
+  }
+
+  if (node.getArray()->getType()->getKind() == Type::TK_BOOL) {
+    auto promote = promoteBoolToInt(node.getArray());
+    node.setArray(promote);
+  }
+
+  if (node.getIndex()->getType()->getKind() == Type::TK_BOOL) {
+    auto promote = promoteBoolToInt(node.getIndex());
+    node.setIndex(promote);
+  }
+
+  if (llvm::isa<ArrayType>(node.getArray()->getType())) {
+    auto newNode = decayArray(node.getArray());
+    node.setArray(newNode);
+    assert(llvm::isa<PointerType>(newNode->getType()));
+    node.setType(
+        llvm::dyn_cast<PointerType>(newNode->getType())->getElementType());
+    node.setValueCategory(node.getArray()->getValueCategory().value());
+  } else if (llvm::isa<ArrayType>(node.getIndex()->getType())) {
+    auto newNode = decayArray(node.getIndex());
+    node.setIndex(newNode);
+    assert(llvm::isa<PointerType>(newNode->getType()));
+    node.setType(
+        llvm::dyn_cast<PointerType>(newNode->getType())->getElementType());
+    node.setValueCategory(node.getIndex()->getValueCategory().value());
+  } else if (llvm::isa<PointerType>(node.getArray()->getType())) {
+    node.setType(llvm::dyn_cast<PointerType>(node.getArray()->getType())
+                     ->getElementType());
+    node.setValueCategory(node.getArray()->getValueCategory().value());
+  } else if (llvm::isa<PointerType>(node.getIndex()->getType())) {
+    node.setType(llvm::dyn_cast<PointerType>(node.getIndex()->getType())
+                     ->getElementType());
+    node.setValueCategory(node.getIndex()->getValueCategory().value());
+  }
+}
 
 auto TypeChecker::visitImplicitCastExpr(ImplicitCastExpr &node) -> void {
   // we need to set this on construction
@@ -394,6 +511,7 @@ auto TypeChecker::visitImplicitCastExpr(ImplicitCastExpr &node) -> void {
   //
   // we can just assert postconditions of a traversal of this node
   assert(node.getType());
+  assert(node.getValueCategory());
   assert(static_cast<int>(node.getCastType()) >= 0);
 }
 
@@ -426,7 +544,7 @@ auto TypeChecker::visitBinaryOperator(BinaryOperator &node) -> void {
 
   switch (node.getOp()) {
   case BinaryOperator::OP_ASSIGN: {
-    if (node.getLHS()->getKind() != ASTNode::NK_DeclRefExpr) {
+    if (node.getLHS()->getValueCategory() != Expr::LValue) {
       auto error = ClangError(
           ClangErrorSeverity::ERROR, node.getLocation().fileName.value(),
           opTok.getLineNo(), opTok.getColumnNo(),
@@ -462,6 +580,7 @@ auto TypeChecker::visitBinaryOperator(BinaryOperator &node) -> void {
       }
 
       node.setType(node.getLHS()->getType());
+      node.setValueCategory(node.getRHS()->getValueCategory().value());
     }
     return;
   }
@@ -547,6 +666,7 @@ auto TypeChecker::visitBinaryOperator(BinaryOperator &node) -> void {
     } else {
       node.setType(ctx.getIntType());
     }
+    node.setValueCategory(Expr::RValue);
   }
     // mod operators
   case BinaryOperator::OP_MOD: {
@@ -580,6 +700,7 @@ auto TypeChecker::visitBinaryOperator(BinaryOperator &node) -> void {
     }
 
     node.setType(ctx.getIntType());
+    node.setValueCategory(Expr::RValue);
     return;
   }
     // boolean only operators
@@ -616,6 +737,7 @@ auto TypeChecker::visitBinaryOperator(BinaryOperator &node) -> void {
     }
 
     node.setType(ctx.getBoolType());
+    node.setValueCategory(Expr::RValue);
     return;
   }
     // comparators
@@ -704,6 +826,7 @@ auto TypeChecker::visitBinaryOperator(BinaryOperator &node) -> void {
     }
 
     node.setType(ctx.getBoolType());
+    node.setValueCategory(Expr::RValue);
     return;
   }
   }
@@ -712,6 +835,11 @@ auto TypeChecker::visitBinaryOperator(BinaryOperator &node) -> void {
 auto TypeChecker::visitUnaryOperator(UnaryOperator &node) -> void {
   auto expr = node.getExpr();
   expr->accept(*this);
+
+  if (expr->getValueCategory() == Expr::LValue) {
+    auto setType = lValueToRValue(expr);
+    node.setExpr(setType);
+  }
 
   if (node.getOp() == UnaryOperator::OP_NOT) {
     auto canCast = expr->getType()->convertsTo(ctx.getBoolType(), false);
@@ -728,6 +856,7 @@ auto TypeChecker::visitUnaryOperator(UnaryOperator &node) -> void {
     }
 
     node.setType(ctx.getBoolType());
+    node.setValueCategory(Expr::RValue);
   } else {
     // OP_NEG
     if (expr->getType()->getKind() == Type::TK_BOOL) {
@@ -754,19 +883,23 @@ auto TypeChecker::visitUnaryOperator(UnaryOperator &node) -> void {
       assert(expr->getType()->getKind() != Type::TK_VOID);
     }
     node.setType(expr->getType());
+    node.setValueCategory(Expr::RValue);
   }
 }
 
 auto TypeChecker::visitIntegerLiteral(IntegerLiteral &node) -> void {
   node.setType(ctx.getIntType());
+  node.setValueCategory(Expr::RValue);
 }
 
 auto TypeChecker::visitFloatLiteral(FloatLiteral &node) -> void {
   node.setType(ctx.getFloatType());
+  node.setValueCategory(Expr::RValue);
 }
 
 auto TypeChecker::visitBoolLiteral(BoolLiteral &node) -> void {
   node.setType(ctx.getBoolType());
+  node.setValueCategory(Expr::RValue);
 }
 
 auto TypeChecker::decayFunction(Expr *expr) -> Expr * {
@@ -778,6 +911,7 @@ auto TypeChecker::decayFunction(Expr *expr) -> Expr * {
   auto newNode = ctx.create<ImplicitCastExpr>(expr, expr->getLocation());
   newNode->setCastType(CastType::FunctionToPointerDecay);
   newNode->setType(newType);
+  newNode->setValueCategory(Expr::RValue);
   return newNode;
 }
 
@@ -786,11 +920,28 @@ auto TypeChecker::decayArray(Expr *expr) -> Expr * {
   assert(expr->getType());
   assert(llvm::isa<ArrayType>(expr->getType()));
 
+  auto oldCategory = expr->getValueCategory();
   auto newType =
       ctx.getPtrTypeFromArrayType(llvm::dyn_cast<ArrayType>(expr->getType()));
   auto newNode = ctx.create<ImplicitCastExpr>(expr, expr->getLocation());
   newNode->setCastType(CastType::FunctionToPointerDecay);
   newNode->setType(newType);
+  newNode->setValueCategory(oldCategory.value());
+
+  return newNode;
+}
+
+auto TypeChecker::lValueToRValue(Expr *expr) -> Expr * {
+  assert(expr);
+  assert(expr->getType());
+  assert(expr->getValueCategory() == Expr::LValue);
+
+  auto newNode = ctx.create<ImplicitCastExpr>(expr, expr->getLocation());
+  assert(newNode);
+  newNode->setCastType(CastType::LValueToRValue);
+  newNode->setType(expr->getType());
+  newNode->setValueCategory(Expr::RValue);
+
   return newNode;
 }
 
@@ -803,6 +954,7 @@ auto TypeChecker::promoteInt(Expr *expr) -> Expr * {
   auto newNode = ctx.create<ImplicitCastExpr>(expr, expr->getLocation());
   newNode->setCastType(CastType::IntegralToFloat);
   newNode->setType(newType);
+  newNode->setValueCategory(Expr::RValue);
   return newNode;
 }
 
@@ -815,6 +967,7 @@ auto TypeChecker::promoteBoolToFloat(Expr *expr) -> Expr * {
   auto newNode = ctx.create<ImplicitCastExpr>(expr, expr->getLocation());
   newNode->setCastType(CastType::BooleanToFloat);
   newNode->setType(newType);
+  newNode->setValueCategory(Expr::RValue);
   return newNode;
 }
 auto TypeChecker::promoteBoolToInt(Expr *expr) -> Expr * {
@@ -826,6 +979,7 @@ auto TypeChecker::promoteBoolToInt(Expr *expr) -> Expr * {
   auto newNode = ctx.create<ImplicitCastExpr>(expr, expr->getLocation());
   newNode->setCastType(CastType::IntegralToFloat);
   newNode->setType(newType);
+  newNode->setValueCategory(Expr::RValue);
   return newNode;
 }
 
