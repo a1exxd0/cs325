@@ -10,7 +10,21 @@ A short introduction in how to produce the frontend for a C compiler producing L
 
 Lexer is prewritten, we need to build a recursive descent predictive parser in C++.
 
-# Grammar (need to make LL(k))
+# Quickstart
+To build, you need `make`, and this tarball.
+
+Then, run:
+```
+make mccomp
+./tests/tests.sh
+```
+
+# Notes
+I'm using two external third-party libraries and will reference accordingly: `{fmt}` and `TartanLlama/expected`.
+
+Both are used extensively throughout the project. They come zipped.
+
+# Original Grammar before changes for reference
 
 ```
 program ::= extern_list decl_list
