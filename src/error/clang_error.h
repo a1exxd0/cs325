@@ -139,3 +139,15 @@ inline auto operator<<(std::ostream &os, const ClangError &err)
 }
 
 }; // namespace mccomp
+
+template <> struct fmt::formatter<mccomp::ClangError> {
+  constexpr auto parse(format_parse_context &ctx) const -> auto {
+    return ctx.begin();
+  }
+
+  template <typename FormatContext>
+  constexpr auto format(const mccomp::ClangError &err, FormatContext &ctx) const
+      -> auto {
+    return fmt::format_to(ctx.out(), "{}", err.to_string());
+  }
+};

@@ -2,6 +2,8 @@
 
 #include <ast/ast.h>
 #include <deque>
+#include <fmt/compile.h>
+#include <fmt/format.h>
 
 namespace mccomp {
 
@@ -18,6 +20,7 @@ class ASTPrinter final : public ConstASTVisitor {
                              const Token &ident) const -> std::string;
 
   auto formatPrefix() const -> std::string;
+  auto formatType(const Type *type) const -> std::string;
   auto visitChildren(const ASTNode &node) -> void;
 
 public:

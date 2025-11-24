@@ -3,9 +3,9 @@
 #include <fmt/format.h>
 
 auto formatAddress(const mccomp::ASTNode *node) -> std::string {
-  return fmt::format(FMT_COMPILE("{}{}{}"), mccomp::text_colors::YELLOW,
-                     static_cast<const void *>(node),
-                     mccomp::text_colors::RESET);
+  auto addr = reinterpret_cast<uintptr_t>(node);
+  return fmt::format(FMT_COMPILE("{}0x{:07x}{}"), mccomp::text_colors::YELLOW,
+                     addr & 0xFFFFFFF, mccomp::text_colors::RESET);
 }
 
 namespace mccomp {
@@ -99,9 +99,22 @@ auto ASTPrinter::formatRegionWithIdent(const SourceLocation &loc,
   return block;
 }
 
+auto ASTPrinter::formatType(const Type *type) const -> std::string {
+  if (type == nullptr) {
+    return fmt::format("{}<invalid type>{}", text_colors::RED,
+                       text_colors::RESET);
+  } else {
+    return fmt::format("{}\'{}\'{}", text_colors::GREEN_NOT_BOLD,
+                       type->to_string(), text_colors::RESET);
+  }
+}
+
 auto ASTPrinter::visitChildren(const ASTNode &node) -> void {
+  if (node.getChildren().empty())
+    return;
   this->activeBlocks.push_back(currIndent);
   this->currIndent += 2;
+
   auto oldLastChild = this->lastChild;
   this->lastChild = false;
 
@@ -138,10 +151,11 @@ auto ASTPrinter::visitTranslationUnit(const TranslationUnit &node) -> void {
 
 auto ASTPrinter::visitFunctionDecl(const FunctionDecl &node) -> void {
   auto fmtStr = fmt::format(
-      FMT_COMPILE("{}{}FunctionDecl{} {} {} {}{}{}"), formatPrefix(),
+      FMT_COMPILE("{}{}FunctionDecl{} {} {} {}{}{} {} {}"), formatPrefix(),
       text_colors::GREEN, text_colors::RESET, formatAddress(&node),
       formatRegionWithIdent(node.getLocation(), node.getIdent()),
-      text_colors::BLUE, node.getName(), text_colors::RESET);
+      text_colors::BLUE, node.getName(), text_colors::RESET,
+      formatType(node.getFunctionType()), (node.isValid() ? "" : "invalid"));
 
   fmt::println("{} {}", fmtStr, (node.getBody() == nullptr) ? "extern" : "");
   this->currFile = node.getLocation().fileName.value();
@@ -151,11 +165,12 @@ auto ASTPrinter::visitFunctionDecl(const FunctionDecl &node) -> void {
 }
 
 auto ASTPrinter::visitVarDecl(const VarDecl &node) -> void {
-  auto fmtStr =
-      fmt::format(FMT_COMPILE("{}{}VarDecl{} {} {} {}{}{}"), formatPrefix(),
-                  text_colors::GREEN, text_colors::RESET, formatAddress(&node),
-                  formatRegionWithIdent(node.getLocation(), node.getIdent()),
-                  text_colors::BLUE, node.getName(), text_colors::RESET);
+  auto fmtStr = fmt::format(
+      FMT_COMPILE("{}{}VarDecl{} {} {} {}{}{} {} {}"), formatPrefix(),
+      text_colors::GREEN, text_colors::RESET, formatAddress(&node),
+      formatRegionWithIdent(node.getLocation(), node.getIdent()),
+      text_colors::BLUE, node.getName(), text_colors::RESET,
+      formatType(node.getType()), (node.isValid() ? "" : "invalid"));
   fmt::println("{}", fmtStr);
   if (node.getInit() == nullptr)
     return;
@@ -168,11 +183,11 @@ auto ASTPrinter::visitVarDecl(const VarDecl &node) -> void {
 
 auto ASTPrinter::visitParmVarDecl(const ParmVarDecl &node) -> void {
   auto fmtStr = fmt::format(
-      FMT_COMPILE("{}{}ParmVarDecl{} {}{}{} {} {}{}{}"), formatPrefix(),
-      text_colors::GREEN, text_colors::RESET, text_colors::YELLOW,
-      static_cast<const void *>(&node), text_colors::RESET,
+      FMT_COMPILE("{}{}ParmVarDecl{} {} {} {}{}{} {} {}"), formatPrefix(),
+      text_colors::GREEN, text_colors::RESET, formatAddress(&node),
       formatRegionWithIdent(node.getLocation(), node.getIdent()),
-      text_colors::BLUE, node.getName(), text_colors::RESET);
+      text_colors::BLUE, node.getName(), text_colors::RESET,
+      formatType(node.getType()), (node.isValid() ? "" : "invalid"));
   fmt::println("{}", fmtStr);
   this->currFile = node.getLocation().fileName.value();
   this->currLine = node.getLocation().endLineNo;
@@ -241,10 +256,11 @@ auto ASTPrinter::visitDeclStmt(const DeclStmt &node) -> void {
 }
 
 auto ASTPrinter::visitCallExpr(const CallExpr &node) -> void {
-  auto fmtStr =
-      fmt::format(FMT_COMPILE("{}{}CallExpr{} {} {}"), formatPrefix(),
-                  text_colors::MAGNETA, text_colors::RESET,
-                  formatAddress(&node), formatRegion(node.getLocation()));
+  auto fmtStr = fmt::format(
+      FMT_COMPILE("{}{}CallExpr{} {} {} {}"), formatPrefix(),
+      text_colors::MAGNETA, text_colors::RESET, formatAddress(&node),
+      formatRegion(node.getLocation()), formatType(node.getType()));
+  fmt::println("{}", fmtStr);
   this->currFile = node.getLocation().fileName.value();
   this->currLine = node.getLocation().endLineNo;
   this->currCol = node.getLocation().endColumnNo;
@@ -252,10 +268,10 @@ auto ASTPrinter::visitCallExpr(const CallExpr &node) -> void {
 }
 
 auto ASTPrinter::visitParenExpr(const ParenExpr &node) -> void {
-  auto fmtStr =
-      fmt::format(FMT_COMPILE("{}{}ParenExpr{} {} {}"), formatPrefix(),
-                  text_colors::MAGNETA, text_colors::RESET,
-                  formatAddress(&node), formatRegion(node.getLocation()));
+  auto fmtStr = fmt::format(
+      FMT_COMPILE("{}{}ParenExpr{} {} {} {}"), formatPrefix(),
+      text_colors::MAGNETA, text_colors::RESET, formatAddress(&node),
+      formatRegion(node.getLocation()), formatType(node.getType()));
   fmt::println("{}", fmtStr);
   this->currFile = node.getLocation().fileName.value();
   this->currLine = node.getLocation().endLineNo;
@@ -265,9 +281,12 @@ auto ASTPrinter::visitParenExpr(const ParenExpr &node) -> void {
 
 auto ASTPrinter::visitDeclRefExpr(const DeclRefExpr &node) -> void {
   auto fmtStr = fmt::format(
-      FMT_COMPILE("{}{}DeclRefExpr{} {} {} {}"), formatPrefix(),
+      FMT_COMPILE("{}{}DeclRefExpr{} {} {} {} {} {} {}"), formatPrefix(),
       text_colors::MAGNETA, text_colors::RESET, formatAddress(&node),
-      formatRegionWithIdent(node.getLocation(), node.ident), node.getName());
+      formatRegionWithIdent(node.getLocation(), node.ident),
+      (node.getReference() ? formatAddress(node.getReference().value()) : ""),
+      node.getName(), formatType(node.getType()),
+      (node.getValueCategory() == Expr::LValue ? "lvalue" : "rvalue"));
   fmt::println("{}", fmtStr);
   this->currFile = node.getLocation().fileName.value();
   this->currLine = node.getLocation().endLineNo;
@@ -276,10 +295,11 @@ auto ASTPrinter::visitDeclRefExpr(const DeclRefExpr &node) -> void {
 
 auto ASTPrinter::visitArraySubscriptExpr(const ArraySubscriptExpr &node)
     -> void {
-  auto fmtStr =
-      fmt::format(FMT_COMPILE("{}{}ArraySubscriptExpr{} {} {}"), formatPrefix(),
-                  text_colors::MAGNETA, text_colors::RESET,
-                  formatAddress(&node), formatRegion(node.getLocation()));
+  auto fmtStr = fmt::format(
+      FMT_COMPILE("{}{}ArraySubscriptExpr{} {} {} {} {}"), formatPrefix(),
+      text_colors::MAGNETA, text_colors::RESET, formatAddress(&node),
+      formatRegion(node.getLocation()), formatType(node.getType()),
+      (node.getValueCategory() == Expr::LValue ? "lvalue" : "rvalue"));
   fmt::println("{}", fmtStr);
   this->currFile = node.getLocation().fileName.value();
   this->currLine = node.getLocation().endLineNo;
@@ -288,10 +308,11 @@ auto ASTPrinter::visitArraySubscriptExpr(const ArraySubscriptExpr &node)
 }
 
 auto ASTPrinter::visitImplicitCastExpr(const ImplicitCastExpr &node) -> void {
-  auto fmtStr =
-      fmt::format(FMT_COMPILE("{}{}ImplicitCastExpr{} {} {}"), formatPrefix(),
-                  text_colors::MAGNETA, text_colors::RESET,
-                  formatAddress(&node), formatRegion(node.getLocation()));
+  auto fmtStr = fmt::format(
+      FMT_COMPILE("{}{}ImplicitCastExpr{} {} {} {} <{}{}{}>"), formatPrefix(),
+      text_colors::MAGNETA, text_colors::RESET, formatAddress(&node),
+      formatRegion(node.getLocation()), formatType(node.getType()),
+      text_colors::RED, to_string(node.getCastType()), text_colors::RESET);
   fmt::println("{}", fmtStr);
   this->currFile = node.getLocation().fileName.value();
   this->currLine = node.getLocation().endLineNo;
@@ -301,9 +322,11 @@ auto ASTPrinter::visitImplicitCastExpr(const ImplicitCastExpr &node) -> void {
 
 auto ASTPrinter::visitBinaryOperator(const BinaryOperator &node) -> void {
   auto fmtStr = fmt::format(
-      FMT_COMPILE("{}{}BinaryOperator{} {} {} {}"), formatPrefix(),
+      FMT_COMPILE("{}{}BinaryOperator{} {} {} {} '{}' {}"), formatPrefix(),
       text_colors::MAGNETA, text_colors::RESET, formatAddress(&node),
-      formatRegion(node.getLocation()), node.getOpToken().getLexeme());
+      formatRegion(node.getLocation()), formatType(node.getType()),
+      node.getOpToken().getLexeme(),
+      (node.getValueCategory() == Expr::LValue ? "lvalue" : "rvalue"));
   fmt::println("{}", fmtStr);
   this->currFile = node.getLocation().fileName.value();
   this->currLine = node.getLocation().endLineNo;
@@ -313,9 +336,10 @@ auto ASTPrinter::visitBinaryOperator(const BinaryOperator &node) -> void {
 
 auto ASTPrinter::visitUnaryOperator(const UnaryOperator &node) -> void {
   auto fmtStr = fmt::format(
-      FMT_COMPILE("{}{}UnaryOperator{} {} {} {}"), formatPrefix(),
+      FMT_COMPILE("{}{}UnaryOperator{} {} {} '{}' {}"), formatPrefix(),
       text_colors::MAGNETA, text_colors::RESET, formatAddress(&node),
-      formatRegion(node.getLocation()), node.getOpToken().getLexeme());
+      formatType(node.getType()), formatRegion(node.getLocation()),
+      node.getOpToken().getLexeme());
   fmt::println("{}", fmtStr);
   this->currFile = node.getLocation().fileName.value();
   this->currLine = node.getLocation().endLineNo;
@@ -324,11 +348,11 @@ auto ASTPrinter::visitUnaryOperator(const UnaryOperator &node) -> void {
 }
 
 auto ASTPrinter::visitIntegerLiteral(const IntegerLiteral &node) -> void {
-  auto fmtStr =
-      fmt::format(FMT_COMPILE("{}{}IntegerLiteral{} {} {} {}{}{}"),
-                  formatPrefix(), text_colors::MAGNETA, text_colors::RESET,
-                  formatAddress(&node), formatRegion(node.getLocation()),
-                  text_colors::CYAN, node.getLit(), text_colors::RESET);
+  auto fmtStr = fmt::format(
+      FMT_COMPILE("{}{}IntegerLiteral{} {} {} {} {}{}{}"), formatPrefix(),
+      text_colors::MAGNETA, text_colors::RESET, formatAddress(&node),
+      formatRegion(node.getLocation()), formatType(node.getType()),
+      text_colors::CYAN, node.getLit(), text_colors::RESET);
   fmt::println("{}", fmtStr);
   this->currFile = node.getLocation().fileName.value();
   this->currLine = node.getLocation().endLineNo;
@@ -336,11 +360,11 @@ auto ASTPrinter::visitIntegerLiteral(const IntegerLiteral &node) -> void {
 }
 
 auto ASTPrinter::visitFloatLiteral(const FloatLiteral &node) -> void {
-  auto fmtStr =
-      fmt::format(FMT_COMPILE("{}{}FloatLiteral{} {} {} {}{}{}"),
-                  formatPrefix(), text_colors::MAGNETA, text_colors::RESET,
-                  formatAddress(&node), formatRegion(node.getLocation()),
-                  text_colors::CYAN, node.getLit(), text_colors::RESET);
+  auto fmtStr = fmt::format(
+      FMT_COMPILE("{}{}FloatLiteral{} {} {} {} {}{:.6f}{}"), formatPrefix(),
+      text_colors::MAGNETA, text_colors::RESET, formatAddress(&node),
+      formatRegion(node.getLocation()), formatType(node.getType()),
+      text_colors::CYAN, node.getLit(), text_colors::RESET);
   fmt::println("{}", fmtStr);
   this->currFile = node.getLocation().fileName.value();
   this->currLine = node.getLocation().endLineNo;
@@ -348,11 +372,12 @@ auto ASTPrinter::visitFloatLiteral(const FloatLiteral &node) -> void {
 }
 
 auto ASTPrinter::visitBoolLiteral(const BoolLiteral &node) -> void {
-  auto fmtStr = fmt::format(
-      FMT_COMPILE("{}{}BoolLiteral{} {} {} {}{}{}"), formatPrefix(),
-      text_colors::MAGNETA, text_colors::RESET, formatAddress(&node),
-      formatRegion(node.getLocation()), text_colors::CYAN,
-      ((node.getLit()) ? "true" : "false"), text_colors::RESET);
+  auto fmtStr =
+      fmt::format(FMT_COMPILE("{}{}BoolLiteral{} {} {} {} {}{}{}"),
+                  formatPrefix(), text_colors::MAGNETA, text_colors::RESET,
+                  formatAddress(&node), formatRegion(node.getLocation()),
+                  text_colors::CYAN, formatType(node.getType()),
+                  ((node.getLit()) ? "true" : "false"), text_colors::RESET);
   fmt::println("{}", fmtStr);
   this->currFile = node.getLocation().fileName.value();
   this->currLine = node.getLocation().endLineNo;

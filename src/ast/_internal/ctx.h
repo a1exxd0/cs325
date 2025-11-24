@@ -1,6 +1,5 @@
 #pragma once
 
-#include <ast/_internal/expr_node.h>
 #include <ast/_internal/type.h>
 #include <llvm/Support/Allocator.h>
 
@@ -32,7 +31,7 @@ public:
   auto getVoidType() const -> Type * { return voidType; }
 
   auto getArrayType(Type *elementType, const std::vector<Expr *> &dims)
-      -> Type * {
+      -> ArrayType * {
     assert(elementType);
     assert(!dims.empty() && dims.size() <= 3);
 
@@ -49,7 +48,18 @@ public:
     return arr;
   }
 
-  auto getPtrType(Type *elementType) -> Type * {
+  auto getPtrTypeFromArrayType(ArrayType *type) -> PointerType * {
+    auto dims = type->getDimensions();
+    auto subDims = std::vector(dims.begin() + 1, dims.end());
+    if (subDims.empty()) {
+      return getPtrType(type->getElementType());
+    }
+
+    auto subArrayType = getArrayType(type->getElementType(), subDims);
+    return getPtrType(subArrayType);
+  }
+
+  auto getPtrType(Type *elementType) -> PointerType * {
     assert(elementType);
     auto it = ptrCache.find(elementType);
     if (it != ptrCache.end()) {
@@ -59,6 +69,19 @@ public:
     auto ptr = create<PointerType>(elementType);
     ptrCache.emplace(elementType, ptr);
     return ptr;
+  }
+
+  auto getFunctionType(Type *returnType, const std::vector<Type *> argTypes)
+      -> FunctionType * {
+    assert(returnType);
+    auto key = FunctionType{returnType, argTypes};
+    auto it = functionCache.find(key);
+    if (it != functionCache.end())
+      return it->second;
+
+    auto fun = create<FunctionType>(returnType, argTypes);
+    functionCache.emplace(std::move(key), fun);
+    return fun;
   }
 
 private:
@@ -71,5 +94,7 @@ private:
 
   std::unordered_map<ArrayType, ArrayType *, ArrayTypeHash> arrayCache;
   std::unordered_map<Type *, PointerType *> ptrCache;
+  std::unordered_map<FunctionType, FunctionType *, FunctionTypeHash>
+      functionCache;
 };
 } // namespace mccomp

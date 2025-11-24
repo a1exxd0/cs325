@@ -1,6 +1,8 @@
 #pragma once
 
 #include <ast/_internal/ast_node.h>
+#include <ast/_internal/decl_node.h>
+#include <ast/_internal/expr_node.h>
 #include <ast/_internal/type.h>
 #include <ast/_internal/visitor.h>
 
@@ -48,21 +50,28 @@ public:
     children.insert(children.end(), stmts.begin(), stmts.end());
     return children;
   }
+
+  static auto classof(const ASTNode *n) -> bool {
+    return n->getKind() == NK_CompoundStmt;
+  }
 };
 
 class IfStmt final : public Stmt {
-  ASTNode *cond;
+  Expr *cond;
   ASTNode *thenStmt;
   ASTNode *elseStmt; // nullable
 
 public:
-  IfStmt(ASTNode *cond, ASTNode *thenStmt, ASTNode *elseStmt,
-         SourceLocation loc)
+  IfStmt(Expr *cond, ASTNode *thenStmt, ASTNode *elseStmt, SourceLocation loc)
       : Stmt(NK_IfStmt, std::move(loc)), cond(cond), thenStmt(thenStmt),
         elseStmt(elseStmt) {}
 
-  auto getCond() -> ASTNode * { return cond; }
-  auto getCond() const -> const ASTNode * { return cond; }
+  auto getCond() -> Expr * { return cond; }
+  auto getCond() const -> const Expr * { return cond; }
+  auto setCond(Expr *cond) -> void {
+    assert(cond);
+    this->cond = cond;
+  }
 
   auto getThen() -> ASTNode * { return thenStmt; }
   auto getThen() const -> const ASTNode * { return thenStmt; }
@@ -87,18 +96,23 @@ public:
     return elseStmt ? std::vector<const ASTNode *>{cond, thenStmt, elseStmt}
                     : std::vector<const ASTNode *>{cond, thenStmt};
   }
+
+  static auto classof(const ASTNode *n) -> bool {
+    return n->getKind() == NK_IfStmt;
+  }
 };
 
 class WhileStmt final : public Stmt {
-  ASTNode *cond;
+  Expr *cond;
   ASTNode *body;
 
 public:
-  WhileStmt(ASTNode *cond, ASTNode *body, SourceLocation loc)
+  WhileStmt(Expr *cond, ASTNode *body, SourceLocation loc)
       : Stmt(NK_WhileStmt, std::move(loc)), cond(cond), body(body) {}
 
-  auto getCond() -> ASTNode * { return cond; }
-  auto getCond() const -> const ASTNode * { return cond; }
+  auto getCond() -> Expr * { return cond; }
+  auto getCond() const -> const Expr * { return cond; }
+  auto setCond(Expr *expr) -> void { this->cond = expr; }
 
   auto getBody() -> ASTNode * { return body; }
   auto getBody() const -> const ASTNode * { return body; }
@@ -116,17 +130,22 @@ public:
   auto getChildren() const -> std::vector<const ASTNode *> override {
     return {cond, body};
   }
+
+  static auto classof(const ASTNode *n) -> bool {
+    return n->getKind() == NK_WhileStmt;
+  }
 };
 
 class ReturnStmt final : public Stmt {
-  ASTNode *expr; // nullable for void returns
+  Expr *expr; // nullable for void returns
 
 public:
-  ReturnStmt(ASTNode *expr, SourceLocation loc)
+  ReturnStmt(Expr *expr, SourceLocation loc)
       : Stmt(NK_ReturnStmt, std::move(loc)), expr(expr) {}
 
-  auto getExpr() -> ASTNode * { return expr; }
-  auto getExpr() const -> const ASTNode * { return expr; }
+  auto getExpr() -> Expr * { return expr; }
+  auto getExpr() const -> const Expr * { return expr; }
+  auto setExpr(Expr *expr) -> void { this->expr = expr; }
 
   auto accept(ASTVisitor &visitor) -> void override {
     visitor.visitReturnStmt(*this);
@@ -144,17 +163,21 @@ public:
     return expr ? std::vector<const ASTNode *>{expr}
                 : std::vector<const ASTNode *>{};
   }
+
+  static auto classof(const ASTNode *n) -> bool {
+    return n->getKind() == NK_ReturnStmt;
+  }
 };
 
 class DeclStmt final : public Stmt {
-  ASTNode *decl;
+  VarDecl *decl;
 
 public:
-  DeclStmt(ASTNode *decl, SourceLocation loc)
+  DeclStmt(VarDecl *decl, SourceLocation loc)
       : Stmt(NK_DeclStmt, std::move(loc)), decl(decl) {}
 
-  auto getDecl() -> ASTNode * { return decl; }
-  auto getDecl() const -> const ASTNode * { return decl; }
+  auto getDecl() -> VarDecl * { return decl; }
+  auto getDecl() const -> const VarDecl * { return decl; }
 
   auto accept(ASTVisitor &visitor) -> void override {
     visitor.visitDeclStmt(*this);
@@ -168,6 +191,10 @@ public:
 
   auto getChildren() const -> std::vector<const ASTNode *> override {
     return {decl};
+  }
+
+  static auto classof(const ASTNode *n) -> bool {
+    return n->getKind() == NK_DeclStmt;
   }
 };
 

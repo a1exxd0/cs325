@@ -147,7 +147,7 @@ auto Parser::parseExtern(Lexer &lexer, ASTContext &ctx)
   }
 
   return util::allocateNode<FunctionDecl>(
-      ctx, ident, typeSpec.value().second, params.value(), nullptr,
+      ctx, ident, typeSpec.value().second, params.value(), nullptr, ctx,
       SourceLocation(externToken.getLineNo(), externToken.getColumnNo(),
                      currToken.getLineNo(), currToken.getColumnNo(),
                      lexer.getFileName()));
@@ -400,7 +400,7 @@ auto Parser::parseFunDecl(Lexer &lexer, ASTContext &ctx)
   }
 
   return util::allocateNode<FunctionDecl>(
-      ctx, ident, typeSpec->second, params.value(), block.value(),
+      ctx, ident, typeSpec->second, params.value(), block.value(), ctx,
       SourceLocation(typeSpec->first.getLineNo(), typeSpec->first.getColumnNo(),
                      block.value()->getLocation().endLineNo,
                      block.value()->getLocation().endColumnNo,
@@ -1011,7 +1011,8 @@ auto Parser::parseLValue(Lexer &lexer, ASTContext &ctx)
   auto identSource = SourceLocation(
       ident.getLineNo(), ident.getColumnNo(), ident.getLineNo(),
       ident.getColumnNo() + ident.getLexeme().size(), lexer.getFileName());
-  auto declRefExpr = util::allocateNode<DeclRefExpr>(ctx, ident, identSource);
+  auto declRefExpr = util::allocateNode<DeclRefExpr>(
+      ctx, ident, DeclRefExpr::VARIABLE, identSource);
   if (!declRefExpr)
     return tl::unexpected(declRefExpr.error());
 
@@ -1021,13 +1022,8 @@ auto Parser::parseLValue(Lexer &lexer, ASTContext &ctx)
   }
 
   for (const auto dimExpr : optDims.value()) {
-    auto implicitCast =
-        util::allocateNode<ImplicitCastExpr>(ctx, rootExpr, identSource);
-    if (!implicitCast)
-      return tl::unexpected(implicitCast.error());
-
     auto arraySubscriptExpr = util::allocateNode<ArraySubscriptExpr>(
-        ctx, implicitCast.value(), dimExpr,
+        ctx, rootExpr, dimExpr,
         SourceLocation(ident.getLineNo(), ident.getColumnNo(),
                        lastTokenConsumed->getLineNo(),
                        lastTokenConsumed->getColumnNo(), lexer.getFileName()));
@@ -1308,7 +1304,8 @@ auto Parser::parsePrimary(Lexer &lexer, ASTContext &ctx)
     }
 
     auto ref = util::allocateNode<DeclRefExpr>(
-        ctx, ident, SourceLocation(ident, lexer.getFileName()));
+        ctx, ident, DeclRefExpr::FUNCTION,
+        SourceLocation(ident, lexer.getFileName()));
     if (!ref) {
       return tl::unexpected(ref.error());
     }
@@ -1327,17 +1324,17 @@ auto Parser::parsePrimary(Lexer &lexer, ASTContext &ctx)
   } else if (firstToken.getTokenType() == TokenType::INT_LIT) {
     this->getNextToken(lexer);
     return util::allocateNode<IntegerLiteral>(
-        ctx, firstToken.asInt(),
+        ctx, firstToken.asInt(), ctx,
         SourceLocation(firstToken, lexer.getFileName()));
   } else if (firstToken.getTokenType() == TokenType::FLOAT_LIT) {
     this->getNextToken(lexer);
     return util::allocateNode<FloatLiteral>(
-        ctx, firstToken.asFloat(),
+        ctx, firstToken.asFloat(), ctx,
         SourceLocation(firstToken, lexer.getFileName()));
   } else if (firstToken.getTokenType() == TokenType::BOOL_LIT) {
     this->getNextToken(lexer);
     return util::allocateNode<BoolLiteral>(
-        ctx, firstToken.asBool(),
+        ctx, firstToken.asBool(), ctx,
         SourceLocation(firstToken, lexer.getFileName()));
   } else {
     return util::badParseCase();
@@ -1348,7 +1345,6 @@ auto Parser::parsePrimary(Lexer &lexer, ASTContext &ctx)
 auto Parser::parseArgs(Lexer &lexer, ASTContext &ctx)
     -> tl::expected<std::vector<Expr *>, ClangError> {
   auto lookahead = this->peekNextToken(lexer);
-  std::cout << "with lookahead " << lookahead << std::endl;
   if (lookahead.in(util::FOLLOW_args)) {
     return {};
   }
