@@ -1,5 +1,7 @@
 #pragma once
 
+#include "fmt/compile.h"
+#include <cstdio>
 #include <llvm/IR/DerivedTypes.h>
 #include <llvm/IR/Function.h>
 #include <string>
@@ -42,6 +44,11 @@ public:
         endColumnNo(rightToken.getColumnNo() + rightToken.getLexeme().size() -
                     1),
         fileName(fileName) {}
+
+  auto to_string() const -> std::string {
+    return fmt::format(FMT_COMPILE("{}:{}:{}"), fileName.value(), startLineNo,
+                       startColumnNo);
+  }
 };
 
 /// ASTnode - Base class for all AST nodes.

@@ -167,6 +167,7 @@ private:
   auto promoteInt(Expr *expr) -> Expr *;
   auto promoteBoolToFloat(Expr *expr) -> Expr *;
   auto promoteBoolToInt(Expr *expr) -> Expr *;
+  auto ensureRValue(Expr *expr) -> Expr *;
 };
 
 } // namespace mccomp

@@ -9,8 +9,6 @@
 
 namespace mccomp {
 
-class Type;
-
 class Expr : public ASTNode {
   Type *type = nullptr;
   bool valid = true;
@@ -34,6 +32,7 @@ public:
 
   auto invalidate() -> void { valid = false; }
   auto isValid() const -> bool { return valid; }
+  auto constEvalIntegral() const -> std::optional<int>;
 
 private:
   std::optional<ValueCategory> valueCategory = std::nullopt;
@@ -95,15 +94,15 @@ private:
 
 class ImplicitCastExpr : public Expr {
 private:
-  ASTNode *expr;
+  Expr *expr;
   CastType castType = static_cast<CastType>(-1);
 
 public:
-  ImplicitCastExpr(ASTNode *expr, SourceLocation loc)
+  ImplicitCastExpr(Expr *expr, SourceLocation loc)
       : Expr(NK_ImplicitCastExpr, std::move(loc)), expr(expr) {}
 
-  auto getExpr() -> ASTNode * { return expr; }
-  auto getExpr() const -> ASTNode * { return expr; }
+  auto getExpr() -> Expr * { return expr; }
+  auto getExpr() const -> Expr * { return expr; }
 
   auto getCastType() const -> CastType { return this->castType; }
   auto setCastType(CastType castType) -> void { this->castType = castType; }
@@ -497,5 +496,21 @@ public:
     return n->getKind() == NK_BoolLiteral;
   }
 };
+
+inline auto Expr::constEvalIntegral() const -> std::optional<int> {
+  if (auto *lit = llvm::dyn_cast<IntegerLiteral>(this)) {
+    return lit->getLit();
+  } else if (auto *op = llvm::dyn_cast<BinaryOperator>(this)) {
+    if (op->getOp() == BinaryOperator::OP_ADD) {
+      auto a = op->constEvalIntegral();
+      auto b = op->constEvalIntegral();
+      if (a && b) {
+        return a.value() + b.value();
+      }
+    }
+  }
+
+  return std::nullopt;
+}
 
 } // namespace mccomp
