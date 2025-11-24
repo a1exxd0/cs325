@@ -1,3 +1,4 @@
+#include "llvm/Support/raw_ostream.h"
 #include <ast/printer.h>
 #include <colors/colors.h>
 #include <fmt/format.h>

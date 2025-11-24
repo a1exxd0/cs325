@@ -1,3 +1,4 @@
+#include "ast/_internal/expr_node.h"
 #include "ast/_internal/type.h"
 #include "error/error.h"
 #include <semantic/type_checker.h>
@@ -88,8 +89,10 @@ auto TypeChecker::visitFunctionDecl(FunctionDecl &node) -> void {
   for (auto param : node.getParams()) {
     param->accept(*this);
   }
-  this->symbolTable.bufferFrame(
-      std::move(this->symbolTable.popFrame().value()));
+
+  auto popped = this->symbolTable.popFrame().value();
+  if (node.getBody())
+    this->symbolTable.bufferFrame(std::move(popped));
 
   auto oldReturnType = this->scopeReturnType;
   this->scopeReturnType = {node.getFunctionType()->getReturnType(),
@@ -168,10 +171,15 @@ auto TypeChecker::visitCompoundStmt(CompoundStmt &node) -> void {
 auto TypeChecker::visitIfStmt(IfStmt &node) -> void {
   auto condition = node.getCond();
   condition->accept(*this);
+  if (!condition->isValid()) {
+    return;
+  }
+
   auto castToNumeral = convertNodeToNumeral(condition);
   if (!castToNumeral) {
     fmt::println("{}", castToNumeral.error().to_string());
     success = false;
+    return;
   } else {
     node.setCond(castToNumeral.value());
   }
@@ -185,6 +193,9 @@ auto TypeChecker::visitIfStmt(IfStmt &node) -> void {
 auto TypeChecker::visitWhileStmt(WhileStmt &node) -> void {
   auto condition = node.getCond();
   condition->accept(*this);
+  if (!condition->isValid()) {
+    return;
+  }
   auto castToNumeral = convertNodeToNumeral(condition);
   if (!castToNumeral) {
     fmt::println("{}", castToNumeral.error().to_string());
@@ -209,11 +220,15 @@ auto TypeChecker::visitReturnStmt(ReturnStmt &node) -> void {
     fmt::println("{}", error);
     this->success = false;
     return;
+  } else if (expectVoid && !node.getExpr()) {
+    return;
   }
 
   node.getExpr()->accept(*this);
   if (!node.getExpr()->isValid())
     return;
+
+  node.setExpr(ensureRValue(node.getExpr()));
 
   // cheating but lets say only allow int/float/bool return as per grammar
   auto canCast =
@@ -318,12 +333,7 @@ auto TypeChecker::visitCallExpr(CallExpr &node) -> void {
     }
   }
 
-  // then decay function type
-  auto newType = ctx.getPtrType(fnDecl->getFunctionType());
-  auto newNode = decayFunction(callee);
-
-  node.setCallee(newNode);
-  node.setType(fnDecl->getType());
+  node.setType(fnDecl->getFunctionType()->getReturnType());
 }
 
 auto TypeChecker::visitParenExpr(ParenExpr &node) -> void {
@@ -386,7 +396,6 @@ auto TypeChecker::visitDeclRefExpr(DeclRefExpr &node) -> void {
   node.setValueCategory(Expr::LValue);
 }
 
-// TODO: implement
 auto TypeChecker::visitArraySubscriptExpr(ArraySubscriptExpr &node) -> void {
   node.getArray()->accept(*this);
   node.getIndex()->accept(*this);
@@ -576,6 +585,7 @@ auto TypeChecker::visitBinaryOperator(BinaryOperator &node) -> void {
             node.getRHS(), node.getRHS()->getLocation());
         newNode->setCastType(canCast->value());
         newNode->setType(node.getLHS()->getType());
+        newNode->setValueCategory(Expr::RValue);
         node.setRHS(newNode);
       }
 
@@ -606,6 +616,8 @@ auto TypeChecker::visitBinaryOperator(BinaryOperator &node) -> void {
       node.setRHS(decayed);
     }
 
+    node.setLHS(ensureRValue(node.getLHS()));
+    node.setRHS(ensureRValue(node.getRHS()));
     auto hasPointer = llvm::isa<PointerType>(node.getLHS()->getType()) ||
                       llvm::isa<PointerType>(node.getRHS()->getType());
     auto bothPointer = llvm::isa<PointerType>(node.getLHS()->getType()) &&
@@ -667,6 +679,7 @@ auto TypeChecker::visitBinaryOperator(BinaryOperator &node) -> void {
       node.setType(ctx.getIntType());
     }
     node.setValueCategory(Expr::RValue);
+    return;
   }
     // mod operators
   case BinaryOperator::OP_MOD: {
@@ -688,6 +701,9 @@ auto TypeChecker::visitBinaryOperator(BinaryOperator &node) -> void {
       success = false;
       return;
     }
+
+    node.setLHS(ensureRValue(node.getLHS()));
+    node.setRHS(ensureRValue(node.getRHS()));
 
     if (node.getLHS()->getType()->getKind() == Type::TK_BOOL) {
       auto promote = promoteBoolToInt(node.getLHS());
@@ -791,15 +807,31 @@ auto TypeChecker::visitBinaryOperator(BinaryOperator &node) -> void {
                     (node.getRHS()->getType()->getKind() == Type::TK_BOOL);
     auto bothInt = (node.getLHS()->getType()->getKind() == Type::TK_INT) &&
                    (node.getRHS()->getType()->getKind() == Type::TK_INT);
+    auto bothFloat = (node.getLHS()->getType()->getKind() == Type::TK_FLOAT) &&
+                     (node.getRHS()->getType()->getKind() == Type::TK_FLOAT);
     auto bothPtr = (node.getLHS()->getType()->getKind() == Type::TK_PTR) &&
                    (node.getRHS()->getType()->getKind() == Type::TK_PTR);
 
-    if (bothPtr)
+    node.setLHS(ensureRValue(node.getLHS()));
+    node.setRHS(ensureRValue(node.getRHS()));
+
+    if (bothPtr) {
+      node.setValueCategory(Expr::RValue);
+      fmt::println("unsupported ptr addition");
       return;
-    else if (bothInt)
+    } else if (bothInt) {
+      node.setValueCategory(Expr::RValue);
+      node.setType(ctx.getIntType());
       return;
-    else if (bothBool)
+    } else if (bothBool) {
+      node.setValueCategory(Expr::RValue);
+      node.setType(ctx.getIntType());
       return;
+    } else if (bothFloat) {
+      node.setValueCategory(Expr::RValue);
+      node.setType(ctx.getFloatType());
+      return;
+    }
 
     if (hasBool) {
       if (node.getLHS()->getType()->getKind() == Type::TK_BOOL) {
@@ -981,6 +1013,19 @@ auto TypeChecker::promoteBoolToInt(Expr *expr) -> Expr * {
   newNode->setType(newType);
   newNode->setValueCategory(Expr::RValue);
   return newNode;
+}
+
+auto TypeChecker::ensureRValue(Expr *expr) -> Expr * {
+  if (expr->getValueCategory() == Expr::RValue) {
+    return expr;
+  }
+
+  auto *cast = ctx.create<ImplicitCastExpr>(expr, expr->getLocation());
+  cast->setCastType(CastType::LValueToRValue);
+  cast->setType(expr->getType());
+  cast->setValueCategory(Expr::RValue);
+
+  return cast;
 }
 
 } // namespace mccomp

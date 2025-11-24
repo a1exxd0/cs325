@@ -35,6 +35,11 @@ public:
 
   auto getIdent() -> Token & { return ident; }
   auto getIdent() const -> const Token & { return ident; }
+
+  static auto classof(const ASTNode *n) -> bool {
+    return n->getKind() == NK_ParmVarDecl || n->getKind() == NK_VarDecl ||
+           n->getKind() == NK_FunctionDecl;
+  }
 };
 
 class ParmVarDecl final : public Decl {
@@ -103,6 +108,13 @@ public:
                ASTNode *body, ASTContext &ctx, SourceLocation loc)
       : Decl(NK_FunctionDecl, std::move(ident), returnType, std::move(loc)),
         params(std::move(params)), body(body) {
+    for (auto parm : this->params) {
+      if (auto *arrayType = llvm::dyn_cast<ArrayType>(parm->getType())) {
+        auto *ptrType = ctx.getPtrTypeFromArrayType(arrayType);
+        parm->setType(ptrType);
+      }
+    }
+
     auto paramsAsTypes = std::vector<Type *>();
     paramsAsTypes.reserve(this->params.size());
     for (auto &param : this->params)
